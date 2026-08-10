@@ -3,9 +3,9 @@ spring:
     name: cockpit-backend
 
   datasource:
-    url: ${COCKPIT_DB_URL:jdbc:postgresql://localhost:5450/cockpit}
+    url: ${COCKPIT_DB_URL:jdbc:postgresql://localhost:5432/cockpit}
     username: ${COCKPIT_DB_USER:postgres}
-    password: ${COCKPIT_DB_PASSWORD:postgres}
+    password: ${COCKPIT_DB_PASSWORD:qwerty1234}
     hikari:
       minimum-idle: 2
       maximum-pool-size: 16
@@ -16,7 +16,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: false
@@ -25,7 +25,7 @@ spring:
         default_schema: cockpit
 
   flyway:
-    enabled: true
+    enabled: false
     schemas: cockpit
     default-schema: cockpit
     locations: classpath:db/migration/cockpit
@@ -34,6 +34,7 @@ spring:
     repair-on-migrate: true
 
   security:
+    enable : true
     oauth2:
       resourceserver:
         jwt:

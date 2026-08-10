@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS cockpit.user_account (
     display_name VARCHAR(120) NOT NULL,
     account_status VARCHAR(24) NOT NULL,
     last_login_at TIMESTAMPTZ,
+    tenant_id UUID NOT NULL,
     CONSTRAINT uk_user_account_username UNIQUE (username),
     CONSTRAINT uk_user_account_email UNIQUE (email),
     CONSTRAINT ck_user_account_status CHECK (account_status IN ('ACTIVE', 'LOCKED', 'DISABLED', 'PENDING'))
@@ -125,6 +126,7 @@ CREATE TABLE IF NOT EXISTS cockpit.data_source (
     source_description VARCHAR(400),
     host_application VARCHAR(40) NOT NULL,
     db_connection_id UUID,
+    tenant_id UUID NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uk_data_source_key UNIQUE (source_key),
     CONSTRAINT fk_data_source_db_connection FOREIGN KEY (db_connection_id) REFERENCES cockpit.db_connection(id)
@@ -160,6 +162,7 @@ CREATE TABLE IF NOT EXISTS cockpit.data_query (
     query_description VARCHAR(500),
     visibility VARCHAR(24) NOT NULL,
     aggregation VARCHAR(24) NOT NULL,
+    tenant_id UUID NOT NULL,
     aggregation_field_id UUID,
     row_limit INTEGER NOT NULL,
     used_by_widgets INTEGER NOT NULL DEFAULT 0,
@@ -323,6 +326,7 @@ CREATE TABLE IF NOT EXISTS cockpit.widget (
     show_title BOOLEAN NOT NULL DEFAULT TRUE,
     widget_description VARCHAR(500),
     query_id UUID,
+    tenant_id UUID NOT NULL,
     grid_x INTEGER NOT NULL,
     grid_y INTEGER NOT NULL,
     grid_w INTEGER NOT NULL,

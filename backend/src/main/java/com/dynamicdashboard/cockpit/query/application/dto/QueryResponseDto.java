@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class QueryResponseDto {
     private UUID id;
+    private UUID tenantId;
     private String name;
     private String description;
     private String visibility;

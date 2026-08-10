@@ -7,6 +7,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 @Getter
@@ -27,4 +28,6 @@ public class UserAccountEntity extends AuditableEntity {
     private AccountStatus accountStatus;
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 }

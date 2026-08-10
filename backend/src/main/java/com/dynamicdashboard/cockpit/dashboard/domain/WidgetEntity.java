@@ -14,10 +14,15 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+
+import java.util.UUID;
+
 @Getter
 @Setter
 @Entity
 @Table(name = "widget", schema = "cockpit")
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class WidgetEntity extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "dashboard_id", nullable = false)
@@ -53,4 +58,6 @@ public class WidgetEntity extends AuditableEntity {
     private KpiFormat kpiFormat;
     @Column(name = "text_content", columnDefinition = "TEXT")
     private String textContent;
+    @Column(name = "tenant_id",nullable = false)
+    private UUID tenantId;
 }

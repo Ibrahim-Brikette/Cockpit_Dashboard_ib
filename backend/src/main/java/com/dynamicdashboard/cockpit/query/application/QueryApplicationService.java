@@ -35,6 +35,7 @@ import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.QueryTransformatio
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.QueryVisibility;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.SortDirection;
 import com.dynamicdashboard.cockpit.shared.security.CurrentUserService;
+import com.dynamicdashboard.cockpit.shared.security.tenant.TenantContext;
 import com.dynamicdashboard.cockpit.shared.utils.ParsingUtils;
 import java.util.List;
 import java.util.Map;
@@ -566,6 +567,12 @@ public class QueryApplicationService {
                 .collect(Collectors.toList());
     }
     @Transactional(readOnly = true)
+    public List<QueryResponseDto> getAllByTenantIdQueries() {
+        return dataQueryRepository.findAllByTenantId(TenantContext.get()).stream()
+                .map(queryMapper::toDto)
+                .collect(Collectors.toList());
+    }
+    @Transactional(readOnly = true)
     public Optional<QueryResponseDto> getQueryById(UUID id) {
         return dataQueryRepository.findById(id).map(queryMapper::toDto);
     }
@@ -608,6 +615,7 @@ public class QueryApplicationService {
             return true;
         }).orElse(false);
     }
+
     @Transactional
     public Optional<QueryResponseDto> duplicateQuery(UUID id) {
         return dataQueryRepository.findById(id).map(source -> {

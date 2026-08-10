@@ -4,10 +4,15 @@ import com.dynamicdashboard.cockpit.shared.persistence.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+
+import java.util.UUID;
+
 @Getter
 @Setter
 @Entity
 @Table(name = "data_source", schema = "cockpit")
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class DataSourceEntity extends AuditableEntity {
     @Column(name = "source_key", nullable = false, length = 120, unique = true)
     private String sourceKey;
@@ -22,4 +27,6 @@ public class DataSourceEntity extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "db_connection_id")
     private DbConnectionEntity dbConnection;
+    @Column(name = "tenant_id",nullable = false)
+    private UUID tenantId;
 }

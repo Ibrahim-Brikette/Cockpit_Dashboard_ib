@@ -1,15 +1,30 @@
 package com.dynamicdashboard.cockpit.shared.security;
 import java.util.List;
+
+import com.dynamicdashboard.cockpit.shared.security.jwt.AudienceValidator;
+import com.dynamicdashboard.cockpit.shared.security.jwt.JwtAbstractAuthoritiesConverter;
+import com.dynamicdashboard.cockpit.shared.security.jwt.JwtAuthoritiesConverter;
+import com.dynamicdashboard.cockpit.shared.security.permission_evaluators.DataQueryPermissionEvaluator;
+import com.dynamicdashboard.cockpit.shared.security.tenant.TenantContextFilter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -18,7 +33,6 @@ import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -27,10 +41,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 @EnableConfigurationProperties(SecurityProperties.class)
+@Slf4j
+@RequiredArgsConstructor
 public class SecurityConfiguration {
+    private final JwtAuthoritiesConverter jwtAuthoritiesConverter;
+    private final TenantContextFilter tenantContextFilter;
+    private final DataQueryPermissionEvaluator dataQueryPermissionEvaluator;
+    @Value("${app.security.enabled:true}")
+    private boolean securityEnabled;
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
@@ -43,10 +63,21 @@ public class SecurityConfiguration {
                         .referrerPolicy(
                                 referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
                         .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31_536_000)))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/info", "/api/**").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().permitAll());
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                    if (securityEnabled) {
+                        auth.requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+                                .anyRequest().authenticated();
+                    } else {
+                        auth.anyRequest().permitAll();
+                    }
+                })
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthoritiesConverter))
+                )
+                .addFilterAfter(tenantContextFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
+
         return http.build();
     }
     @Bean
@@ -63,23 +94,43 @@ public class SecurityConfiguration {
         return source;
     }
     @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(new JwtAuthoritiesConverter());
-        return converter;
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        log.error("MethodSecurityExpressionHandler        ");
+        var handler = new DefaultMethodSecurityExpressionHandler();
+        handler.setPermissionEvaluator(dataQueryPermissionEvaluator);
+        return handler;
     }
+
     @Bean
-    JwtDecoder jwtDecoder(SecurityProperties securityProperties,
-            org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties properties) {
-        try {
-            NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(properties.getJwt().getIssuerUri()).build();
-            OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(securityProperties.getRequiredAudience());
-            OAuth2TokenValidator<Jwt> defaultValidators = JwtValidators
-                    .createDefaultWithIssuer(properties.getJwt().getIssuerUri());
-            decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(defaultValidators, audienceValidator));
-            return decoder;
-        } catch (Exception e) {
-            return token -> null;
-        }
+    public DaoAuthenticationProvider authenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
     }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+//    @Bean
+//    JwtAbstractAuthenticationConverter jwtAuthenticationConverter() {
+//        JwtAbstractAuthenticationConverter converter = new JwtAbstractAuthenticationConverter();
+//        converter.setJwtGrantedAuthoritiesConverter(new JwtAbstractAuthoritiesConverter());
+//        return converter;
+//    }
+//    @Bean
+//    JwtDecoder jwtDecoder(SecurityProperties securityProperties,
+//            org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties properties) {
+//        try {
+//            NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(properties.getJwt().getIssuerUri()).build();
+//            OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(securityProperties.getRequiredAudience());
+//            OAuth2TokenValidator<Jwt> defaultValidators = JwtValidators
+//                    .createDefaultWithIssuer(properties.getJwt().getIssuerUri());
+//            decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(defaultValidators, audienceValidator));
+//            return decoder;
+//        } catch (Exception e) {
+//            return token -> null;
+//        }
+//    }
 }

@@ -102,6 +102,7 @@ public class QueryMapper {
                 .rowLimit(entity.getRowLimit())
                 .usedByWidgets(usedByWidgetsCount)
                 .updatedAt(entity.getUpdatedAt())
+                .tenantId(entity.getTenantId())
                 .build();
     }
 }
