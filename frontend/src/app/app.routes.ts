@@ -21,5 +21,15 @@ export const routes: Routes = [
     loadChildren: () => import('@pages/data-sources/data-sources.routes').then(m => m.routes),
     canActivate: [authGuard]
   },
+  {
+    path: 'admin-kpi',
+    loadChildren: () => import('@pages/admin-kpi/admin-kpi.routes').then(m => m.routes),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'alertes',
+    loadChildren: () => import('@pages/alerts/alerts.routes').then(m => m.routes),
+    canActivate: [authGuard]
+  },
   { path: '**', redirectTo: '' }
 ];

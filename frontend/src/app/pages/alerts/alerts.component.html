@@ -1,0 +1,146 @@
+<div class="mx-auto max-w-[1240px] p-5">
+  <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <div class="mb-1 flex items-center gap-2">
+        <app-svg-icon name="BellRing" class="h-5 w-5 text-brand-strong"></app-svg-icon>
+        <h1 class="text-lg font-semibold text-ink">Alertes &amp; notifications</h1>
+      </div>
+      <p class="text-xs text-ink-faint">Surveillez les seuils métier, diffusez les notifications et gérez les incidents en temps réel.</p>
+    </div>
+    <div class="flex gap-2">
+      <app-button (onClick)="evaluateNow()">
+        <app-svg-icon name="RefreshCw" class="h-3.5 w-3.5"></app-svg-icon>
+        Évaluer maintenant
+      </app-button>
+      <app-button variant="primary" (onClick)="openCreateRule()">
+        <app-svg-icon name="Plus" class="h-3.5 w-3.5"></app-svg-icon>
+        Nouvelle règle
+      </app-button>
+    </div>
+  </div>
+
+  <section class="mb-5 grid gap-3 sm:grid-cols-3">
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-medium text-ink-soft">Alertes à traiter</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-negative">
+          <app-svg-icon name="CircleAlert" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ activeCount }}</p>
+    </article>
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-medium text-ink-soft">Alertes critiques</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-amber-50 text-caution">
+          <app-svg-icon name="ShieldAlert" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ criticalCount }}</p>
+    </article>
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-medium text-ink-soft">Règles actives</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-brand-soft text-brand-strong">
+          <app-svg-icon name="CheckCircle2" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ enabledRulesCount }}</p>
+    </article>
+  </section>
+
+  <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+    <!-- Flux d'alertes -->
+    <section>
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-ink">Flux d'alertes</h2>
+          <p class="text-2xs text-ink-faint">Historique des déclenchements et résolutions.</p>
+        </div>
+        <div class="flex flex-wrap gap-1">
+          <button
+            *ngFor="let item of filters"
+            type="button"
+            (click)="setFilter(item.value)"
+            [ngClass]="filter === item.value ? 'bg-brand-soft text-brand-strong' : 'text-ink-faint hover:bg-surface-sunken hover:text-ink'"
+            class="rounded-md px-2 py-1 text-2xs font-medium"
+          >{{ item.label }}</button>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <app-alert-event-row
+          *ngFor="let alert of visibleAlerts"
+          [alert]="alert"
+          (onAcknowledge)="acknowledge($event)"
+          (onSnooze)="snooze($event)"
+        ></app-alert-event-row>
+
+        <div *ngIf="!visibleAlerts.length" class="flex flex-col items-center justify-center rounded-lg border border-dashed border-line bg-white p-8 text-center">
+          <app-svg-icon name="BellRing" class="mb-2 h-6 w-6 text-ink-faint"></app-svg-icon>
+          <p class="text-xs font-semibold text-ink">Aucune alerte dans cette vue</p>
+          <p class="mt-1 text-2xs text-ink-faint">Les alertes déclenchées apparaîtront ici.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Règles d'alerte -->
+    <section>
+      <div class="mb-3">
+        <h2 class="text-sm font-semibold text-ink">Règles d'alerte</h2>
+        <p class="text-2xs text-ink-faint">Seuils surveillés et canaux de diffusion.</p>
+      </div>
+      <div class="space-y-2">
+        <article *ngFor="let rule of alertRules" class="relative rounded-lg border border-line bg-white p-3 shadow-card">
+          <div class="flex gap-2">
+            <label class="mt-0.5 cursor-pointer">
+              <input
+                type="checkbox"
+                [checked]="rule.enabled"
+                (change)="toggleRule(rule.id)"
+                class="sr-only"
+                [attr.aria-label]="(rule.enabled ? 'Désactiver ' : 'Activer ') + rule.name"
+              />
+              <span class="relative block h-4 w-7 rounded-full" [ngClass]="rule.enabled ? 'bg-brand' : 'bg-line-strong'">
+                <span class="absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform" [ngClass]="rule.enabled ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
+              </span>
+            </label>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-start gap-2">
+                <h3 class="flex-1 truncate text-xs font-semibold text-ink">{{ rule.name }}</h3>
+                <app-alert-severity-badge [severity]="rule.severity" [compact]="true"></app-alert-severity-badge>
+                <button (click)="toggleMenu(rule.id)" [attr.aria-label]="'Actions pour ' + rule.name" class="text-ink-faint hover:text-ink">
+                  <app-svg-icon name="MoreHorizontal" class="h-4 w-4"></app-svg-icon>
+                </button>
+              </div>
+              <p class="mt-1 truncate text-2xs text-ink-faint">{{ queryNameFor(rule) }}</p>
+              <p class="mt-1 text-xs text-ink-soft">
+                {{ metricLabel(rule) }} {{ operatorLabel(rule) }}
+                <strong class="tabular-nums text-ink">{{ formatMetric(rule.threshold) }}</strong>
+              </p>
+              <p class="mt-2 text-2xs text-ink-faint">{{ enabledChannelsLabel(rule) }}</p>
+            </div>
+          </div>
+
+          <div *ngIf="menuRuleId === rule.id" class="absolute right-3 top-9 z-10 w-32 rounded-md border border-line bg-white py-1 shadow-pop">
+            <button (click)="openEditRule(rule)" class="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-2xs text-ink-soft hover:bg-surface-muted">
+              <app-svg-icon name="Pencil" class="h-3.5 w-3.5"></app-svg-icon>
+              Modifier
+            </button>
+            <button (click)="deleteRule(rule)" class="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-2xs text-negative hover:bg-red-50">
+              <app-svg-icon name="Trash2" class="h-3.5 w-3.5"></app-svg-icon>
+              Supprimer
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <app-alert-rule-modal
+    [open]="editorOpen"
+    [rule]="editorRule"
+    [queries]="queries"
+    (onClose)="closeEditor()"
+    (onSave)="saveRule($event)"
+  ></app-alert-rule-modal>
+</div>

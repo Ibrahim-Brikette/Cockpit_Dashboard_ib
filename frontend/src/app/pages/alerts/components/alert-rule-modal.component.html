@@ -1,0 +1,109 @@
+<app-modal [open]="open" [title]="title" width="max-w-2xl" (onClose)="close()">
+  <div class="space-y-4">
+    <div>
+      <label for="rule-name" class="mb-1 block text-2xs font-semibold uppercase tracking-wide text-ink-faint">Nom de la règle</label>
+      <input
+        id="rule-name"
+        type="text"
+        [(ngModel)]="draft.name"
+        class="h-7 w-full rounded-md border border-line-strong bg-white px-2 text-xs text-ink placeholder:text-ink-faint focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors"
+      />
+    </div>
+
+    <div class="grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface-muted p-3 sm:grid-cols-2">
+      <div class="sm:col-span-2">
+        <label for="rule-query" class="mb-1 block text-2xs font-semibold uppercase tracking-wide text-ink-faint">Requête surveillée</label>
+        <select
+        id="rule-query"
+          [(ngModel)]="draft.queryId"
+          class="h-7 w-full rounded-md border border-line-strong bg-white px-2 text-xs text-ink focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors"
+        >
+          <option value="">Choisir une requête…</option>
+          <option *ngFor="let query of queries" [value]="query.id">{{ query.name }}</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="rule-metric" class="mb-1 block text-2xs font-semibold uppercase tracking-wide text-ink-faint">Mesure</label>
+        <select
+          id="rule-metric"
+          [(ngModel)]="draft.metric"
+          class="h-7 w-full rounded-md border border-line-strong bg-white px-2 text-xs text-ink focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors"
+        >
+          <option value="total">Total</option>
+          <option value="average">Moyenne</option>
+          <option value="maximum">Maximum</option>
+          <option value="minimum">Minimum</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="rule-operator" class="mb-1 block text-2xs font-semibold uppercase tracking-wide text-ink-faint">Condition</label>
+        <select
+          id="rule-operator"
+          [(ngModel)]="draft.operator"
+          class="h-7 w-full rounded-md border border-line-strong bg-white px-2 text-xs text-ink focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors"
+        >
+          <option value="gt">est supérieur à</option>
+          <option value="lt">est inférieur à</option>
+          <option value="eq">est égal à</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="rule-threshold" class="mb-1 block text-2xs font-semibold uppercase tracking-wide text-ink-faint">Seuil</label>
+        <input
+          id="rule-threshold"
+          type="number"
+          [(ngModel)]="draft.threshold"
+          class="h-7 w-full rounded-md border border-line-strong bg-white px-2 text-xs text-ink focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors"
+        />
+      </div>
+
+      <div>
+        <label for="rule-severity" class="mb-1 block text-2xs font-semibold uppercase tracking-wide text-ink-faint">Gravité</label>
+        <select
+          id="rule-severity"
+          [(ngModel)]="draft.severity"
+          class="h-7 w-full rounded-md border border-line-strong bg-white px-2 text-xs text-ink focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors"
+        >
+          <option value="critical">Critique</option>
+          <option value="warning">Avertissement</option>
+          <option value="info">Information</option>
+        </select>
+      </div>
+    </div>
+
+    <section>
+      <h3 class="mb-2 text-xs font-semibold text-ink">Canaux de notification</h3>
+      <div class="divide-y divide-line rounded-lg border border-line">
+        <div *ngFor="let channel of draft.channels" class="flex flex-wrap items-center gap-3 p-2">
+          <label class="min-w-36 text-xs font-medium text-ink">
+            <input
+              type="checkbox"
+              [checked]="channel.enabled"
+              (change)="patchChannel(channel.channel, { enabled: $any($event.target).checked })"
+              class="mr-2 rounded text-brand"
+            />
+            {{ channelLabels[channel.channel] }}
+          </label>
+          <input
+            *ngIf="channel.channel !== 'inApp'"
+            type="text"
+            [disabled]="!channel.enabled"
+            [value]="channel.recipient ?? ''"
+            (input)="patchChannel(channel.channel, { recipient: $any($event.target).value })"
+            [placeholder]="channelRecipientPlaceholder(channel.channel)"
+            class="h-7 flex-1 rounded-md border border-line-strong bg-white px-2 text-xs text-ink placeholder:text-ink-faint focus:border-brand focus:ring-1 focus:ring-brand outline-none transition-colors disabled:opacity-50"
+          />
+        </div>
+      </div>
+      <p class="mt-1.5 text-2xs text-ink-faint">Les canaux externes seront pris en charge par le backend (envoi réel des notifications).</p>
+    </section>
+  </div>
+
+  <div class="mt-4 flex justify-end gap-2">
+    <app-button (onClick)="close()">Annuler</app-button>
+    <app-button variant="primary" [disabled]="!canSave" (onClick)="save()">{{ rule ? 'Enregistrer' : 'Créer la règle' }}</app-button>
+  </div>
+</app-modal>

@@ -62,4 +62,35 @@ public final class DomainEnums {
     public enum AccessLevel {
         READ, EDIT, OWNER
     }
+    public enum AlertStatus {
+        ACTIVE, ACKNOWLEDGED, SNOOZED, RESOLVED
+    }
+
+    public enum AlertSeverity {
+        INFO, WARNING, CRITICAL
+    }
+
+    public enum AlertMetric {
+        TOTAL, AVERAGE, MAXIMUM, MINIMUM
+    }
+
+    public enum AlertComparisonOperator {
+        GT, LT, EQ
+    }
+
+    public enum AlertChannel {
+        IN_APP, EMAIL, SMS, WHATSAPP
+    }
+
+    public enum AnalyticsAction {
+        DASHBOARD_VIEW, DASHBOARD_IMPRESSION, DASHBOARD_CLICK,
+        WIDGET_IMPRESSION, WIDGET_INTERACTION,
+        RAW_DATA_VIEW, RAW_DATA_EXPORT,
+        QUERY_EXECUTION
+    }
+
+    public enum AnalyticsTarget {
+        DASHBOARD, WIDGET, QUERY, ALERT_RULE, ALERT_EVENT, DATA_SOURCE
+    }
+
 }

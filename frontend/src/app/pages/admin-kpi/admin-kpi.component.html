@@ -1,0 +1,304 @@
+<div class="mx-auto max-w-[1400px] p-5">
+  <header class="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <div class="mb-1 flex items-center gap-2">
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-ink text-white">
+          <app-svg-icon name="ChartNoAxesCombined" class="h-4 w-4"></app-svg-icon>
+        </span>
+        <h1 class="text-lg font-semibold text-ink">Console KPI administrateur</h1>
+        <app-badge tone="brand">Super admin</app-badge>
+      </div>
+      <p class="text-xs text-ink-faint">Adoption, activité et usage détaillé du cockpit sur les 7 derniers jours.</p>
+    </div>
+    <div class="flex items-center gap-2 rounded-md border border-line bg-white px-2.5 py-1.5 text-2xs text-ink-faint">
+      <span class="h-1.5 w-1.5 rounded-full bg-positive"></span>
+      Données en direct · mise à jour au fil des consultations
+    </div>
+  </header>
+
+  <section class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-2xs font-medium text-ink-soft">Utilisateurs actifs</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-brand-soft text-brand-strong">
+          <app-svg-icon name="Users" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ formatNumber(activeUsers) }}</p>
+      <p class="mt-0.5 truncate text-2xs text-ink-faint">{{ usersCount }} utilisateurs identifiés</p>
+    </article>
+
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-2xs font-medium text-ink-soft">Impressions</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-surface-muted text-ink-soft">
+          <app-svg-icon name="Eye" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ formatNumber(impressions) }}</p>
+      <p class="mt-0.5 truncate text-2xs text-ink-faint">dashboards et widgets</p>
+    </article>
+
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-2xs font-medium text-ink-soft">Clics</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-green-50 text-positive">
+          <app-svg-icon name="MousePointerClick" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ formatNumber(dashboardViews + rawDataViews) }}</p>
+      <p class="mt-0.5 truncate text-2xs text-ink-faint">{{ formatPercent(clicksEngagement) }} d'engagement</p>
+    </article>
+
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-2xs font-medium text-ink-soft">Consultations dashboard</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-amber-50 text-caution">
+          <app-svg-icon name="BarChart3" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ formatNumber(dashboardViews) }}</p>
+      <p class="mt-0.5 truncate text-2xs text-ink-faint">{{ dashboards.length }} tableaux publiés</p>
+    </article>
+
+    <article class="rounded-lg border border-line bg-white p-3 shadow-card">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-2xs font-medium text-ink-soft">Données brutes</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-negative">
+          <app-svg-icon name="FileSearch" class="h-4 w-4"></app-svg-icon>
+        </span>
+      </div>
+      <p class="mt-2 text-2xl font-semibold tracking-tight text-ink tabular-nums">{{ formatNumber(rawDataViews) }}</p>
+      <p class="mt-0.5 truncate text-2xs text-ink-faint">{{ queryRuns }} exécutions requêtes</p>
+    </article>
+  </section>
+
+  
+  <section class="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(330px,0.8fr)]">
+    <article class="rounded-lg border border-line bg-white p-4 shadow-card">
+      <div class="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-ink">Activité quotidienne</h2>
+          <p class="text-2xs text-ink-faint">Consultations de tableaux et ouvertures de données brutes.</p>
+        </div>
+        <app-badge tone="positive"><app-svg-icon name="Activity" class="mr-1 h-3 w-3"></app-svg-icon>7 jours</app-badge>
+      </div>
+      <div class="flex h-64 gap-2">
+        <div class="flex flex-col justify-between py-1 text-2xs text-ink-faint">
+          <span *ngFor="let line of chartGridLines">{{ formatNumber(line.value) }}</span>
+        </div>
+        <div
+          #chartHost
+          class="relative flex-1"
+          (mousemove)="onChartMove($event, chartHost)"
+          (mouseleave)="onChartLeave()"
+        >
+          <svg class="h-full w-full overflow-visible" viewBox="0 0 300 100" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="adminViewsGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2563eb" stop-opacity="0.22" />
+                <stop offset="100%" stop-color="#2563eb" stop-opacity="0.02" />
+              </linearGradient>
+            </defs>
+            <line
+              *ngFor="let line of chartGridLines"
+              x1="0" [attr.y1]="line.y" x2="300" [attr.y2]="line.y"
+              stroke="#e5e7eb" stroke-width="0.5" vector-effect="non-scaling-stroke"
+            />
+            <path [attr.d]="chartAreaPath" fill="url(#adminViewsGradient)" />
+            <path [attr.d]="chartLinePath" fill="none" stroke="#2563eb" stroke-width="2" vector-effect="non-scaling-stroke" />
+            <path [attr.d]="chartRawDataLinePath" fill="none" stroke="#d97706" stroke-width="2" vector-effect="non-scaling-stroke" />
+            <ng-container *ngIf="hoveredPoint">
+              <line
+                [attr.x1]="hoveredXSvg" y1="0" [attr.x2]="hoveredXSvg" y2="100"
+                stroke="#9ca3af" stroke-width="0.5" vector-effect="non-scaling-stroke"
+              />
+              <circle [attr.cx]="hoveredXSvg" [attr.cy]="hoveredDashboardYSvg" r="1.5" fill="#2563eb" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+              <circle [attr.cx]="hoveredXSvg" [attr.cy]="hoveredRawDataYSvg" r="1.5" fill="#d97706" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+            </ng-container>
+          </svg>
+
+          <div
+            *ngIf="hoveredPoint"
+            class="pointer-events-none absolute z-10 w-max max-w-[11rem] whitespace-nowrap rounded-md border border-line bg-white px-2 py-1.5 text-[11px] shadow-card"
+            [style.left.%]="tooltipLeftPercent"
+            [style.top.%]="hoveredYPercent"
+            [style.transform]="tooltipSide === 'right'
+              ? 'translate(8px, -50%)'
+              : 'translate(calc(-100% - 8px), -50%)'"
+          >
+            <p class="mb-1 font-semibold text-ink">{{ hoveredPoint.label }}</p>
+            <p class="flex items-center justify-between gap-3">
+              <span class="font-medium" style="color:#2563eb">Données brutes</span>
+              <span class="font-medium" style="color:#2563eb">{{ hoveredPoint.dashboardViews }}</span>
+            </p>
+            <p class="flex items-center justify-between gap-3">
+              <span class="font-medium" style="color:#d97706">Données brutes</span>
+              <span class="font-medium" style="color:#d97706">{{ hoveredPoint.rawDataViews }}</span>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="mt-2 flex justify-between text-2xs text-ink-faint">
+        <span *ngFor="let point of seriesPoints">{{ point.label }}</span>
+      </div>
+    </article>
+
+    <article class="rounded-lg border border-line bg-white p-4 shadow-card">
+      <div class="mb-3">
+        <h2 class="text-sm font-semibold text-ink">Capacité du système</h2>
+        <p class="text-2xs text-ink-faint">Inventaire utilisé par les équipes.</p>
+      </div>
+      <dl class="divide-y divide-line">
+        <div class="flex items-baseline justify-between gap-3 py-2.5">
+          <dt class="text-xs text-ink-soft">Tableaux de bord</dt>
+          <dd class="text-right"><span class="text-sm font-semibold tabular-nums text-ink">{{ formatNumber(dashboards.length) }}</span><span class="ml-1 text-2xs text-ink-faint">créés</span></dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-3 py-2.5">
+          <dt class="text-xs text-ink-soft">Widgets</dt>
+          <dd class="text-right"><span class="text-sm font-semibold tabular-nums text-ink">{{ formatNumber(totalWidgets) }}</span><span class="ml-1 text-2xs text-ink-faint">affichés</span></dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-3 py-2.5">
+          <dt class="text-xs text-ink-soft">Requêtes</dt>
+          <dd class="text-right"><span class="text-sm font-semibold tabular-nums text-ink">{{ formatNumber(queries.length) }}</span><span class="ml-1 text-2xs text-ink-faint">configurées</span></dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-3 py-2.5">
+          <dt class="text-xs text-ink-soft">Sources de données</dt>
+          <dd class="text-right"><span class="text-sm font-semibold tabular-nums text-ink">{{ formatNumber(dataSourcesCount) }}</span><span class="ml-1 text-2xs text-ink-faint">disponibles</span></dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-3 py-2.5">
+          <dt class="text-xs text-ink-soft">Moy. vues / dashboard</dt>
+          <dd class="text-right"><span class="text-sm font-semibold tabular-nums text-ink">{{ formatNumber(avgViewsPerDashboard) }}</span><span class="ml-1 text-2xs text-ink-faint">sur la période</span></dd>
+        </div>
+      </dl>
+    </article>
+  </section>
+
+  <section class="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
+    <article class="rounded-lg border border-line bg-white p-4 shadow-card">
+      <div class="mb-3">
+        <h2 class="text-sm font-semibold text-ink">Tableaux les plus consultés</h2>
+        <p class="text-2xs text-ink-faint">Nombre de consultations</p>
+      </div>
+      <ol class="space-y-3">
+        <li *ngFor="let item of topDashboards; let i = index">
+          <div class="mb-1 flex items-center gap-2 text-xs">
+            <span class="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-2xs font-semibold text-ink-faint">{{ i + 1 }}</span>
+            <span class="min-w-0 flex-1 truncate font-medium text-ink">{{ item.label }}</span>
+            <span class="tabular-nums text-ink-soft">{{ formatNumber(item.value) }}</span>
+          </div>
+          <div class="ml-6 h-1.5 overflow-hidden rounded-full bg-surface-muted">
+            <div class="h-full rounded-full bg-brand" [style.width.%]="rankedBarWidth(item.value, topDashboards[0]?.value || 1)"></div>
+          </div>
+        </li>
+        <li *ngIf="!topDashboards.length" class="text-xs text-ink-faint">Aucune donnée disponible.</li>
+      </ol>
+    </article>
+
+    <article class="rounded-lg border border-line bg-white p-4 shadow-card">
+      <div class="mb-3">
+        <h2 class="text-sm font-semibold text-ink">Requêtes les plus exécutées</h2>
+        <p class="text-2xs text-ink-faint">Exécutions via widgets</p>
+      </div>
+      <ol class="space-y-3">
+        <li *ngFor="let item of topQueries; let i = index">
+          <div class="mb-1 flex items-center gap-2 text-xs">
+            <span class="flex h-4 w-4 items-center justify-center rounded bg-surface-muted text-2xs font-semibold text-ink-faint">{{ i + 1 }}</span>
+            <span class="min-w-0 flex-1 truncate font-medium text-ink">{{ item.label }}</span>
+            <span class="tabular-nums text-ink-soft">{{ formatNumber(item.value) }}</span>
+          </div>
+          <div class="ml-6 h-1.5 overflow-hidden rounded-full bg-surface-muted">
+            <div class="h-full rounded-full bg-brand" [style.width.%]="rankedBarWidth(item.value, topQueries[0]?.value || 1)"></div>
+          </div>
+        </li>
+        <li *ngIf="!topQueries.length" class="text-xs text-ink-faint">Aucune donnée disponible.</li>
+      </ol>
+    </article>
+
+    <article class="rounded-lg border border-line bg-white p-4 shadow-card">
+      <div class="mb-3">
+        <h2 class="text-sm font-semibold text-ink">Données brutes consultées</h2>
+        <p class="text-2xs text-ink-faint">Widgets qui déclenchent le plus d'exploration.</p>
+      </div>
+
+      <div class="relative" #widgetWrapper>
+        <div class="grid h-44" [style.grid-template-rows]="'repeat(' + (topWidgets.length || 1) + ', 1fr)'">
+          <div
+            *ngFor="let item of topWidgets; let i = index"
+            class="relative grid items-center gap-2"
+            style="grid-template-columns: 7rem 1fr"
+          >
+            <span class="min-w-0 truncate text-right text-[10px] text-ink-soft" [title]="item.label">{{ item.label }}</span>
+
+            <div
+              class="relative flex h-full items-center overflow-hidden "
+              [style.background]="hoveredWidgetIndex === i ? '#CBCBCB' : 'transparent'"
+              (mouseenter)="onWidgetBarMove($event, i, widgetWrapper)"
+              (mousemove)="onWidgetBarMove($event, i, widgetWrapper)"
+              (mouseleave)="onWidgetBarLeave()"
+            >
+              <div
+                class="h-[70%] rounded-[3px]"
+                style="background:#0f766e"
+                [style.width.%]="rankedBarWidth(item.views, topWidgets[0]?.views || 1)"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FIX 2 : bascule du tooltip au-dessus de la barre quand elle est proche du bas (transform + top calculé côté .ts, voir onWidgetBarMove) -->
+        <div
+          *ngIf="hoveredWidgetIndex !== null"
+          class="pointer-events-none absolute z-10 w-max whitespace-nowrap bg-white"
+          style="font-size:11px;border-radius:6px;border:1px solid #e3e6ea;padding:5px 8px;box-shadow:0 4px 12px rgba(16,24,40,0.10)"
+          [style.left.px]="tooltipWidgetX"
+          [style.top.px]="tooltipWidgetY"
+        >
+          <p class="mb-0.5 font-semibold text-ink">{{ topWidgets[hoveredWidgetIndex].label }}</p>
+          <p style="color:#0f766e">Consultations : {{ formatNumber(topWidgets[hoveredWidgetIndex].views) }}</p>
+        </div>
+      </div>
+
+      <div class="mt-2 space-y-1">
+        <p *ngFor="let item of topWidgets.slice(0, 3)" class="truncate text-2xs text-ink-faint">
+          <span class="font-medium text-ink-soft">{{ item.label }}</span> · {{ item.dashboard }}
+        </p>
+      </div>
+    </article>
+  </section>
+
+  <section class="rounded-lg border border-line bg-white shadow-card">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
+      <div>
+        <h2 class="text-sm font-semibold text-ink">Activité récente</h2>
+        <p class="text-2xs text-ink-faint">Dernières actions enregistrées sur la plateforme.</p>
+      </div>
+      <div class="flex flex-wrap gap-1" role="tablist" aria-label="Filtrer l'activité">
+        <button
+          *ngFor="let item of filters"
+          type="button"
+          (click)="setFilter(item.value)"
+          [ngClass]="filter === item.value ? 'bg-brand-soft text-brand-strong' : 'text-ink-faint hover:bg-surface-muted hover:text-ink'"
+          class="rounded-md px-2 py-1 text-2xs font-medium"
+        >{{ item.label }}</button>
+      </div>
+    </div>
+    <div class="divide-y divide-line">
+      <div *ngFor="let event of activities" class="flex items-center gap-3 px-4 py-3">
+        <span
+          class="h-2 w-2 rounded-full"
+          [ngClass]="eventTone(event) === 'brand' ? 'bg-brand' : eventTone(event) === 'positive' ? 'bg-positive' : 'bg-caution'"
+        ></span>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs text-ink">
+            <span class="font-semibold">{{ event.userName }}</span> · {{ actionLabel(event.action) }}
+            <span class="font-medium">« {{ event.targetName }} »</span>
+          </p>
+          <p *ngIf="event.dashboardName" class="mt-0.5 text-2xs text-ink-faint">Dans {{ event.dashboardName }}</p>
+        </div>
+        <span class="whitespace-nowrap text-2xs text-ink-faint">{{ relativeDate(event.timestamp) }}</span>
+      </div>
+      <p *ngIf="!activities.length" class="p-6 text-center text-xs text-ink-faint">Aucune activité pour ce filtre.</p>
+    </div>
+  </section>
+</div>
