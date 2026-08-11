@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { AnalyticsOverviewDto } from '@core/api/dtos/analytics.dto';
 import { AnalyticsMapper } from '@core/api/mappers/analytics.mapper';
 import { AnalyticsCounters, AnalyticsDailyPoint, AnalyticsEvent } from '@core/models/types';
+import { SseService } from '@core/services/sse.service';
 
 const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200')
   ? 'http://localhost:8080/api'
@@ -33,7 +34,13 @@ export class AnalyticsService {
   private overviewSubject = new BehaviorSubject<AnalyticsOverview>(EMPTY_OVERVIEW);
   overview$: Observable<AnalyticsOverview> = this.overviewSubject.asObservable();
 
-  constructor(private http: HttpClient, private ngZone: NgZone) {}
+  constructor(private http: HttpClient, private ngZone: NgZone, private sseService: SseService) {
+    this.sseService.events$.subscribe(event => {
+      if (event.channel === 'analytics_changed') {
+        this.loadFromBackend();
+      }
+    });
+  }
 
   loadFromBackend(): void {
     this.http.get<AnalyticsOverviewDto>(`${API_URL}/analytics/overview`).subscribe({
@@ -44,9 +51,7 @@ export class AnalyticsService {
       error: (err) => console.error('[AnalyticsService] échec /analytics/overview', err)
     });
   }
-  /**
-   * Enregistre un évènement d'usage (vue de dashboard, clic, exécution de requête...).
-   */
+
   track(
     action: 'dashboard_view' | 'dashboard_click' | 'dashboard_impression' | 'widget_impression' |
       'widget_interaction' | 'raw_data_view' | 'raw_data_export' | 'query_execution',

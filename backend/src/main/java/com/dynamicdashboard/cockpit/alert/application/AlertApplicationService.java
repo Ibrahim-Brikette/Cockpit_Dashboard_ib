@@ -40,6 +40,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AlertApplicationService {
 
+    private final com.dynamicdashboard.cockpit.shared.cache.RedisCacheService redisCacheService;
+    private final com.dynamicdashboard.cockpit.shared.sse.SseNotificationService sseNotificationService;
+
+
     private final AlertRuleRepository alertRuleRepository;
     private final AlertRuleChannelRepository alertRuleChannelRepository;
     private final AlertEventRepository alertEventRepository;
@@ -49,15 +53,17 @@ public class AlertApplicationService {
     private final AlertMapper alertMapper;
     private final AuditApplicationService auditApplicationService;
 
-    // ------------------------------------------------------------------
-    // Règles d'alerte
-    // ------------------------------------------------------------------
+
 
     @Transactional(readOnly = true)
     public List<AlertRuleResponseDto> getAllRules() {
-        return alertRuleRepository.findAllByOrderByCreatedAtDesc().stream()
+        List<AlertRuleResponseDto> cached = redisCacheService.get("alert:rules", new com.fasterxml.jackson.core.type.TypeReference<List<AlertRuleResponseDto>>() {});
+        if (cached != null) return cached;
+        List<AlertRuleResponseDto> result = alertRuleRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(alertMapper::toRuleDto)
                 .collect(Collectors.toList());
+        redisCacheService.put("alert:rules", result);
+        return result;
     }
 
     @Transactional
@@ -68,6 +74,8 @@ public class AlertApplicationService {
         saveChannels(saved, dto.getChannels());
 
         auditApplicationService.logEvent("Création de règle d'alerte", "ALERT_RULE", saved.getId(), saved.getRuleName(), null);
+        redisCacheService.evictByPrefix("alert");
+        sseNotificationService.broadcast("alerts_changed");
         return alertMapper.toRuleDto(saved);
     }
 
@@ -82,6 +90,8 @@ public class AlertApplicationService {
             saveChannels(saved, dto.getChannels());
 
             auditApplicationService.logEvent("Modification de règle d'alerte", "ALERT_RULE", saved.getId(), saved.getRuleName(), null);
+            redisCacheService.evictByPrefix("alert");
+            sseNotificationService.broadcast("alerts_changed");
             return alertMapper.toRuleDto(saved);
         });
     }
@@ -90,8 +100,17 @@ public class AlertApplicationService {
     public boolean deleteRule(UUID id) {
         return alertRuleRepository.findById(id).map(rule -> {
             alertRuleChannelRepository.deleteAll(alertRuleChannelRepository.findByRuleId(id));
+            
+            List<AlertEventEntity> events = alertEventRepository.findByRuleId(id);
+            for (AlertEventEntity event : events) {
+                event.setRule(null);
+            }
+            alertEventRepository.saveAll(events);
+
             auditApplicationService.logEvent("Suppression de règle d'alerte", "ALERT_RULE", rule.getId(), rule.getRuleName(), null);
             alertRuleRepository.delete(rule);
+            redisCacheService.evictByPrefix("alert");
+            sseNotificationService.broadcast("alerts_changed");
             return true;
         }).orElse(false);
     }
@@ -101,6 +120,8 @@ public class AlertApplicationService {
         return alertRuleRepository.findById(id).map(rule -> {
             rule.setEnabled(!rule.isEnabled());
             AlertRuleEntity saved = alertRuleRepository.save(rule);
+            redisCacheService.evictByPrefix("alert");
+            sseNotificationService.broadcast("alerts_changed");
             return alertMapper.toRuleDto(saved);
         });
     }
@@ -133,15 +154,17 @@ public class AlertApplicationService {
         }
     }
 
-    // ------------------------------------------------------------------
-    // Évènements d'alerte
-    // ------------------------------------------------------------------
+
 
     @Transactional(readOnly = true)
     public List<AlertEventDto> getAllEvents() {
-        return alertEventRepository.findAllByOrderByTriggeredAtDesc().stream()
+        List<AlertEventDto> cached = redisCacheService.get("alert:events", new com.fasterxml.jackson.core.type.TypeReference<List<AlertEventDto>>() {});
+        if (cached != null) return cached;
+        List<AlertEventDto> result = alertEventRepository.findAllByOrderByTriggeredAtDesc().stream()
                 .map(alertMapper::toEventDto)
                 .collect(Collectors.toList());
+        redisCacheService.put("alert:events", result);
+        return result;
     }
 
     @Transactional
@@ -151,6 +174,8 @@ public class AlertApplicationService {
                 event.setStatus(AlertStatus.ACKNOWLEDGED);
                 event.setAcknowledgedAt(Instant.now());
                 alertEventRepository.save(event);
+                redisCacheService.evictByPrefix("alert");
+                sseNotificationService.broadcast("alerts_changed");
             }
             return alertMapper.toEventDto(event);
         });
@@ -163,14 +188,14 @@ public class AlertApplicationService {
                 event.setStatus(AlertStatus.SNOOZED);
                 event.setSnoozedUntil(Instant.now().plusSeconds((long) minutes * 60));
                 alertEventRepository.save(event);
+                redisCacheService.evictByPrefix("alert");
+                sseNotificationService.broadcast("alerts_changed");
             }
             return alertMapper.toEventDto(event);
         });
     }
 
-    // ------------------------------------------------------------------
-    // Moteur d'évaluation (portage de lib/alertEngine.ts)
-    // ------------------------------------------------------------------
+
 
     @Transactional
     public List<AlertEventDto> evaluateAlerts() {
@@ -254,10 +279,12 @@ public class AlertApplicationService {
             triggered.add(alertMapper.toEventDto(saved));
         }
 
+        redisCacheService.evictByPrefix("alert");
+        sseNotificationService.broadcast("alerts_changed");
         return triggered;
     }
 
-    /** Aplatit toutes les valeurs numériques des lignes retournées par la requête et applique l'agrégat. */
+
     private Double computeMetric(List<Map<String, Object>> rows, AlertMetric metric) {
         List<Double> values = new ArrayList<>();
         for (Map<String, Object> row : rows) {

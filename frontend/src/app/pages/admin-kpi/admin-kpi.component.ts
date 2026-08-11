@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription, combineLatest } from 'rxjs';
 import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component';
@@ -6,6 +6,7 @@ import { BadgeComponent } from '@shared/components/ui/badge.component';
 import { DashboardService } from '@pages/dashboard/services/dashboard.service';
 import { QueryService } from '@pages/query/services/query.service';
 import { AnalyticsService } from '@pages/admin-kpi/services/analytics.service';
+import { DbConnectionService } from '@pages/data-sources/services/db-connection.service';
 import { AnalyticsEvent, Dashboard, DataQuery } from '@core/models/types';
 import { formatNumber, formatPercent, relativeDate } from '@core/utils/utils';
 import {
@@ -67,7 +68,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
   chartRawDataLinePath = '';
   chartGridLines: { y: number; value: number }[] = [];
   hoveredIndex: number | null = null;
-  /** Position verticale (en %) du curseur dans la zone du graphe, pour que le tooltip suive la souris. */
+
   hoveredYPercent = 50;
 
   private subscription?: Subscription;
@@ -75,13 +76,19 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
   constructor(
     private dashboardService: DashboardService,
     private queryService: QueryService,
-    private analyticsService: AnalyticsService
+    private analyticsService: AnalyticsService,
+    private dbConnectionService: DbConnectionService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.dashboardService.loadFromBackend();
     this.queryService.loadFromBackend();
     this.analyticsService.loadFromBackend();
+
+    this.dbConnectionService.getAllConnections().subscribe(conns => {
+      this.dataSourcesCount = conns?.length ?? 0;
+    });
 
     this.subscription = combineLatest([
       this.dashboardService.dashboards$,
@@ -91,7 +98,6 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     ]).subscribe(([dashboards, queries, catalogSources, overview]) => {
       this.dashboards = dashboards;
       this.queries = queries;
-      this.dataSourcesCount = catalogSources?.length ?? 0;
 
       const counters = overview.counters;
       this.dashboardViews = Object.values(counters.dashboardViews).reduce((sum, value) => sum + value, 0);
@@ -100,9 +106,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
       this.impressions = counters.impressions;
       this.clicksEngagement = engagementRate(counters);
 
-      // On ne garde que les jours réellement actifs (comme côté React :
-      // un jour où l'application n'a pas été ouverte n'a jamais d'entrée),
-      // puis on limite aux 7 derniers jours actifs.
+
       const daily = overview.daily;
       const activeDaily = daily.filter(
         (point) => point.activeUsers > 0 || point.dashboardViews > 0 || point.rawDataViews > 0
@@ -135,6 +139,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
       this.totalWidgets = dashboards.reduce((sum, dashboard) => sum + dashboard.widgets.length, 0);
 
       this.buildChartPaths();
+      this.cdr.detectChanges();
     });
   }
 
@@ -181,14 +186,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     return Math.max(8, (value / max) * 100);
   }
 
-  /**
-   * Calcule un pas d'axe "rond", comme le fait recharts côté React (ex: 0,30,60,90,120
-   * pour un pic à ~92), afin que la courbe remplisse la hauteur du graphique au lieu de
-   * laisser un grand vide au-dessus. On arrondit le pas au chiffre entier supérieur
-   * (1 à 10) à sa magnitude, au lieu de le forcer sur la grille grossière {1,2,5,10} qui
-   * pouvait doubler inutilement le maximum (ex: 92 -> pas 50 -> max 200 au lieu de
-   * pas 30 -> max 120).
-   */
+
   private get chartAxisStep(): number {
     const raw = Math.max(1, ...this.seriesPoints.map((p) => Math.max(p.dashboardViews, p.rawDataViews)));
     const roughStep = raw / 4;
@@ -223,12 +221,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
         y: this.valueToSvgY(point[key], max)
       }));
 
-    /**
-     * Interpolation cubique monotone (même algorithme que d3/recharts "type=monotone",
-     * conversion Hermite → Bézier), pour que la courbe suive fidèlement les vraies
-     * valeurs sans créer de "vagues" artificielles comme le faisait l'ancien tracé
-     * en courbes de Bézier quadratiques enchaînées.
-     */
+
     const buildSmoothPath = (coords: { x: number; y: number }[]) => {
       const n = coords.length;
       if (!n) return '';
@@ -237,7 +230,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
         return `M${coords[0].x.toFixed(2)},${coords[0].y.toFixed(2)} L${coords[1].x.toFixed(2)},${coords[1].y.toFixed(2)}`;
       }
 
-      // 1. Pentes entre points consécutifs.
+
       const dx: number[] = [];
       const slope: number[] = [];
       for (let i = 0; i < n - 1; i++) {
@@ -245,7 +238,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
         slope.push((coords[i + 1].y - coords[i].y) / dx[i]);
       }
 
-      // 2. Tangentes initiales (moyenne des pentes adjacentes).
+
       const tangent: number[] = new Array(n);
       tangent[0] = slope[0];
       tangent[n - 1] = slope[n - 2];
@@ -253,8 +246,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
         tangent[i] = (slope[i - 1] + slope[i]) / 2;
       }
 
-      // 3. Contraintes de Fritsch-Carlson pour garantir la monotonie
-      //    (empêche tout dépassement/rebond artificiel entre les points).
+
       for (let i = 0; i < n - 1; i++) {
         if (slope[i] === 0) {
           tangent[i] = 0;
@@ -271,7 +263,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
         }
       }
 
-      // 4. Conversion Hermite -> Bézier cubique (commandes SVG "C").
+
       let path = `M${coords[0].x.toFixed(2)},${coords[0].y.toFixed(2)}`;
       for (let i = 0; i < n - 1; i++) {
         const p0 = coords[i];
@@ -291,9 +283,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     this.chartAreaPath = `${this.chartLinePath} L${(points.length - 1) * stepX},100 L0,100 Z`;
     this.chartRawDataLinePath = buildSmoothPath(toCoords('rawDataViews'));
 
-    // i=0 correspond à la ligne du haut (valeur max) et i=steps à la ligne du bas (0),
-    // pour que la liste des libellés (rendue de haut en bas dans le template) affiche
-    // bien "120, 90, 60, 30, 0" et non l'inverse.
+
     const steps = 4;
     const step = this.chartAxisStep;
     this.chartGridLines = Array.from({ length: steps + 1 }, (_, i) => {
@@ -308,9 +298,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     const ratioX = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
     this.hoveredIndex = Math.round(ratioX * (this.seriesPoints.length - 1));
 
-    // Le tooltip suit verticalement la position réelle de la souris dans la zone
-    // du graphe (comme le fait le Tooltip de recharts côté React), au lieu de
-    // rester figé en haut du graphique.
+
     const ratioY = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
     this.hoveredYPercent = Math.min(88, Math.max(4, ratioY * 100));
   }
@@ -319,17 +307,12 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     this.hoveredIndex = null;
   }
 
-  /** Survol d'une barre dans le widget "Données brutes consultées" (tooltip au hover, comme React). */
+
   hoveredWidgetIndex: number | null = null;
   tooltipWidgetX = 0;
   tooltipWidgetY = 0;
 
-  /**
-   * Le tooltip suit la souris horizontalement, et se place au-dessus de la ligne
-   * survolée quand c'est la dernière (pour ne pas sortir de la carte), sinon
-   * en-dessous — comme le comportement d'un tooltip recharts qui reste toujours
-   * visible dans son conteneur.
-   */
+
  onWidgetBarMove(event: MouseEvent, index: number, wrapper: HTMLElement): void {
   this.hoveredWidgetIndex = index;
 
@@ -370,11 +353,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     return Math.min(98, Math.max(2, this.hoveredXPercent));
   }
 
-  /**
-   * Le tooltip se place à côté du trait de la courbe (comme recharts côté React),
-   * pas centré dessus : à droite du point par défaut, et il bascule à gauche quand
-   * on approche du bord droit du graphique pour ne jamais sortir du cadre.
-   */
+
   get tooltipSide(): 'left' | 'right' {
     return this.hoveredXPercent > 62 ? 'left' : 'right';
   }

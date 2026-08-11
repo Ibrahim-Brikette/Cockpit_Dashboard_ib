@@ -11,5 +11,7 @@ public interface AlertEventRepository extends JpaRepository<AlertEventEntity, UU
 
     List<AlertEventEntity> findAllByOrderByTriggeredAtDesc();
 
+    List<AlertEventEntity> findByRuleId(UUID ruleId);
+
     Optional<AlertEventEntity> findFirstByRuleIdAndStatusNotOrderByTriggeredAtDesc(UUID ruleId, AlertStatus status);
 }

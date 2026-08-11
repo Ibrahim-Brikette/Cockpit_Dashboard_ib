@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5450/cockpit
+
+vault:
+  uri: http://localhost:8200

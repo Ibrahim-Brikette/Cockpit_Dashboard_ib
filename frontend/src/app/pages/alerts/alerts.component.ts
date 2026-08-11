@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription, combineLatest } from 'rxjs';
 import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component';
@@ -46,7 +46,11 @@ export class AlertsComponent implements OnInit, OnDestroy {
 
   private subscription?: Subscription;
 
-  constructor(private queryService: QueryService, private alertsService: AlertsService) {}
+  constructor(
+    private queryService: QueryService, 
+    private alertsService: AlertsService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.queryService.loadFromBackend();
@@ -61,6 +65,7 @@ export class AlertsComponent implements OnInit, OnDestroy {
       this.queries = queries;
       this.alerts = alerts;
       this.alertRules = alertRules;
+      this.cdr.detectChanges();
     });
   }
 

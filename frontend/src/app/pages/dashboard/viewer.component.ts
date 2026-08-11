@@ -2,6 +2,7 @@ import { DashboardService } from '@pages/dashboard/services/dashboard.service';
 import { QueryService } from '@pages/query/services/query.service';
 import { AuditService, AuditLogEntry } from '@pages/settings/services/audit.service';
 import { UserService, UserProfile } from '@core/services/user.service';
+import { AnalyticsService } from '@pages/admin-kpi/services/analytics.service';
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -170,6 +171,7 @@ export class DashboardViewerComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private dashboardService: DashboardService, private queryService: QueryService, private auditService: AuditService, private userService: UserService,
+    private analyticsService: AnalyticsService,
     private cdr: ChangeDetectorRef
   ) {}
   ngOnInit(): void {
@@ -183,6 +185,7 @@ export class DashboardViewerComponent implements OnInit, OnDestroy {
         this.dashboard = found ?? null;
         this.loading = false;
         if (found) {
+          this.analyticsService.track('dashboard_view', 'dashboard', found.id, found.name, { dashboardId: found.id, dashboardName: found.name });
           if (!Object.keys(this.filterValues).length) {
             this.filterValues = Object.fromEntries(
               found.globalFilters.map((f) => [f.id, f.defaultValue || 'TOUS'])

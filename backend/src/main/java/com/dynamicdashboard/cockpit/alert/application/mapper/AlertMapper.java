@@ -82,7 +82,6 @@ public class AlertMapper {
                 .build();
     }
 
-    /** "inApp" | "email" | "sms" | "whatsapp" -> AlertChannel */
     public static AlertChannel channelFromString(String value) {
         if (value == null) return AlertChannel.IN_APP;
         return switch (value.trim()) {
@@ -94,7 +93,6 @@ public class AlertMapper {
         };
     }
 
-    /** AlertChannel -> "inApp" | "email" | "sms" | "whatsapp" */
     public static String channelToString(AlertChannel channel) {
         return switch (channel) {
             case IN_APP -> "inApp";

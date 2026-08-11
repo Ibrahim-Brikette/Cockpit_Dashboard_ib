@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { AlertEventDto, AlertRuleDto } from '@core/api/dtos/alert.dto';
 import { AlertMapper } from '@core/api/mappers/alert.mapper';
 import { AlertEvent, AlertRule } from '@core/models/types';
+import { SseService } from '@core/services/sse.service';
 
 const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200')
   ? 'http://localhost:8080/api'
@@ -17,7 +18,14 @@ export class AlertsService {
   alerts$: Observable<AlertEvent[]> = this.alertsSubject.asObservable();
   alertRules$: Observable<AlertRule[]> = this.rulesSubject.asObservable();
 
-  constructor(private http: HttpClient, private ngZone: NgZone) {}
+  constructor(private http: HttpClient, private ngZone: NgZone, private sseService: SseService) {
+    this.sseService.events$.subscribe(event => {
+      if (event.channel === 'alerts_changed') {
+        this.loadAlerts();
+        this.loadAlertRules();
+      }
+    });
+  }
 
   
   loadAlerts(): void {

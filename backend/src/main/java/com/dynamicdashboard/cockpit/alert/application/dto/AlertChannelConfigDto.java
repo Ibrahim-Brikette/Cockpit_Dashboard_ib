@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AlertChannelConfigDto {
-    private String channel;   // "inApp" | "email" | "sms" | "whatsapp"
+    private String channel;
     private boolean enabled;
     private String recipient;
 }

@@ -1,4 +1,6 @@
 package com.dynamicdashboard.cockpit.query.controller;
+import com.dynamicdashboard.cockpit.analytics.application.AnalyticsApplicationService;
+import com.dynamicdashboard.cockpit.analytics.application.dto.CreateAnalyticsEventRequestDto;
 import com.dynamicdashboard.cockpit.query.application.QueryApplicationService;
 import com.dynamicdashboard.cockpit.query.application.dto.QueryRequestDto;
 import com.dynamicdashboard.cockpit.query.application.dto.QueryResponseDto;
@@ -22,6 +24,7 @@ import java.util.UUID;
 @CrossOrigin(origins = "*")
 public class QueryController {
     private final QueryApplicationService queryApplicationService;
+    private final AnalyticsApplicationService analyticsApplicationService;
     @GetMapping
     public ResponseEntity<List<QueryResponseDto>> getAllQueries() {
         return ResponseEntity.ok(queryApplicationService.getAllQueries());
@@ -58,11 +61,40 @@ public class QueryController {
     }
     @RequestMapping(value = "/{id}/execute", method = {org.springframework.web.bind.annotation.RequestMethod.GET, org.springframework.web.bind.annotation.RequestMethod.POST})
     public ResponseEntity<List<java.util.Map<String, Object>>> executeQueryData(@PathVariable UUID id, @RequestBody(required = false) List<com.dynamicdashboard.cockpit.query.application.dto.RuntimeQueryFilterDto> filters) {
-        return ResponseEntity.ok(queryApplicationService.executeQueryData(id, filters));
+        ResponseEntity<List<java.util.Map<String, Object>>> response = ResponseEntity.ok(queryApplicationService.executeQueryData(id, filters));
+        try {
+            String targetName = queryApplicationService.getQueryById(id)
+                    .map(com.dynamicdashboard.cockpit.query.application.dto.QueryResponseDto::getName)
+                    .orElse("Requête inconnue");
+            analyticsApplicationService.recordEvent(CreateAnalyticsEventRequestDto.builder()
+                .action("QUERY_EXECUTION")
+                .target("QUERY")
+                .targetId(id)
+                .targetName(targetName)
+                .build());
+        } catch (Exception ignored) {}
+        return response;
     }
     @PostMapping("/batch-execute")
     public ResponseEntity<java.util.Map<String, List<java.util.Map<String, Object>>>> executeBatchQueriesInParallel(@RequestBody java.util.Map<String, List<com.dynamicdashboard.cockpit.query.application.dto.RuntimeQueryFilterDto>> queryFilterMap) {
-        return ResponseEntity.ok(queryApplicationService.executeBatchQueriesInParallel(queryFilterMap));
+        ResponseEntity<java.util.Map<String, List<java.util.Map<String, Object>>>> response = ResponseEntity.ok(queryApplicationService.executeBatchQueriesInParallel(queryFilterMap));
+        try {
+            if (queryFilterMap != null) {
+                for (String qid : queryFilterMap.keySet()) {
+                    UUID qUuid = UUID.fromString(qid);
+                    String targetName = queryApplicationService.getQueryById(qUuid)
+                            .map(com.dynamicdashboard.cockpit.query.application.dto.QueryResponseDto::getName)
+                            .orElse("Requête inconnue");
+                    analyticsApplicationService.recordEvent(CreateAnalyticsEventRequestDto.builder()
+                        .action("QUERY_EXECUTION")
+                        .target("QUERY")
+                        .targetId(qUuid)
+                        .targetName(targetName)
+                        .build());
+                }
+            }
+        } catch (Exception ignored) {}
+        return response;
     }
     @PostMapping("/preview")
     public ResponseEntity<List<java.util.Map<String, Object>>> previewDraftQuery(@RequestBody QueryRequestDto dto) {

@@ -38,6 +38,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AnalyticsApplicationService {
 
+    private final com.dynamicdashboard.cockpit.shared.cache.RedisCacheService redisCacheService;
+    private final com.dynamicdashboard.cockpit.shared.sse.SseNotificationService sseNotificationService;
+
+
     private static final ZoneId ZONE = ZoneId.systemDefault();
     private static final DateTimeFormatter DAY_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final Set<AnalyticsAction> CLICK_ACTIONS = Set.of(
@@ -71,11 +75,17 @@ public class AnalyticsApplicationService {
         }
 
         AnalyticsEventEntity saved = analyticsEventRepository.save(event);
+        redisCacheService.evictByPrefix("analytics");
+        sseNotificationService.broadcast("analytics_changed");
         return analyticsMapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)
     public List<AnalyticsEventDto> getRecentEvents(String actionFilter, int limit) {
+        String cacheKey = "analytics:recent:" + actionFilter + "_" + limit;
+        List<AnalyticsEventDto> cached = redisCacheService.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<List<AnalyticsEventDto>>() {});
+        if (cached != null) return cached;
+
         PageRequest page = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "occurredAt"));
         List<AnalyticsEventEntity> events;
         if (actionFilter != null && !actionFilter.isBlank() && !"all".equalsIgnoreCase(actionFilter)) {
@@ -86,11 +96,17 @@ public class AnalyticsApplicationService {
         } else {
             events = analyticsEventRepository.findAllByOrderByOccurredAtDesc(page);
         }
-        return events.stream().map(analyticsMapper::toDto).collect(Collectors.toList());
+        List<AnalyticsEventDto> result = events.stream().map(analyticsMapper::toDto).collect(Collectors.toList());
+        redisCacheService.put(cacheKey, result);
+        return result;
     }
 
     @Transactional(readOnly = true)
     public AnalyticsSummaryDto getSummary(int days) {
+        String cacheKey = "analytics:summary:" + days;
+        AnalyticsSummaryDto cached = redisCacheService.get(cacheKey, new com.fasterxml.jackson.core.type.TypeReference<AnalyticsSummaryDto>() {});
+        if (cached != null) return cached;
+
         int windowDays = days <= 0 ? 7 : days;
 
         LocalDate today = LocalDate.now(ZONE);
@@ -116,11 +132,13 @@ public class AnalyticsApplicationService {
         List<AnalyticsEventEntity> recentForFeed = analyticsEventRepository
                 .findAllByOrderByOccurredAtDesc(PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "occurredAt")));
 
-        return AnalyticsSummaryDto.builder()
+        AnalyticsSummaryDto result = AnalyticsSummaryDto.builder()
                 .counters(buildCounters(events))
                 .daily(buildDailySeries(events, activeDaysAsc))
                 .events(recentForFeed.stream().map(analyticsMapper::toDto).collect(Collectors.toList()))
                 .build();
+        redisCacheService.put(cacheKey, result);
+        return result;
     }
 
     private AnalyticsCountersDto buildCounters(List<AnalyticsEventEntity> events) {

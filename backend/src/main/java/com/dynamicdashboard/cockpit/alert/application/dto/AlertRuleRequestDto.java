@@ -14,10 +14,10 @@ public class AlertRuleRequestDto {
     private String id;
     private String name;
     private String queryId;
-    private String metric;     // total | average | maximum | minimum
-    private String operator;   // gt | lt | eq
+    private String metric;
+    private String operator;
     private Double threshold;
-    private String severity;   // critical | warning | info
+    private String severity;
     private Boolean enabled;
     private List<AlertChannelConfigDto> channels;
 }
