@@ -10,6 +10,7 @@ import { formatMetric, metricLabel, operatorLabel } from '@pages/alerts/utils/al
 import { AlertEventRowComponent } from './components/alert-event-row.component';
 import { AlertSeverityBadgeComponent } from './components/alert-severity-badge.component';
 import { AlertRuleModalComponent } from './components/alert-rule-modal.component';
+import { ConfirmModalComponent } from '@shared/components/ui/confirm-modal.component';
 
 type FeedFilter = 'all' | AlertStatus;
 
@@ -22,7 +23,8 @@ type FeedFilter = 'all' | AlertStatus;
     ButtonComponent,
     AlertEventRowComponent,
     AlertSeverityBadgeComponent,
-    AlertRuleModalComponent
+    AlertRuleModalComponent,
+    ConfirmModalComponent
   ],
   templateUrl: './alerts.component.html'
 })
@@ -43,6 +45,9 @@ export class AlertsComponent implements OnInit, OnDestroy {
   editorOpen = false;
   editorRule?: AlertRule;
   menuRuleId: string | null = null;
+
+  deleteConfirmOpen = false;
+  ruleToDeleteId: string | null = null;
 
   private subscription?: Subscription;
 
@@ -125,10 +130,17 @@ export class AlertsComponent implements OnInit, OnDestroy {
   }
 
   deleteRule(rule: AlertRule): void {
-    if (confirm(`Supprimer la règle « ${rule.name} » ?`)) {
-      this.alertsService.deleteAlertRule(rule.id);
-    }
+    this.ruleToDeleteId = rule.id;
+    this.deleteConfirmOpen = true;
     this.menuRuleId = null;
+  }
+
+  confirmDeleteRule(): void {
+    if (this.ruleToDeleteId) {
+      this.alertsService.deleteAlertRule(this.ruleToDeleteId);
+      this.ruleToDeleteId = null;
+    }
+    this.deleteConfirmOpen = false;
   }
 
   acknowledge(alertId: string): void {

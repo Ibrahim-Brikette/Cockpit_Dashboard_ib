@@ -143,4 +143,12 @@
     (onClose)="closeEditor()"
     (onSave)="saveRule($event)"
   ></app-alert-rule-modal>
+
+  <app-confirm-modal
+    [open]="deleteConfirmOpen"
+    title="Supprimer la règle"
+    message="Êtes-vous sûr de vouloir supprimer cette règle d'alerte ? Cette action est irréversible."
+    (onClose)="deleteConfirmOpen = false"
+    (onConfirm)="confirmDeleteRule()"
+  ></app-confirm-modal>
 </div>

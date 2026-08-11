@@ -79,20 +79,7 @@ public class QueryController {
     public ResponseEntity<java.util.Map<String, List<java.util.Map<String, Object>>>> executeBatchQueriesInParallel(@RequestBody java.util.Map<String, List<com.dynamicdashboard.cockpit.query.application.dto.RuntimeQueryFilterDto>> queryFilterMap) {
         ResponseEntity<java.util.Map<String, List<java.util.Map<String, Object>>>> response = ResponseEntity.ok(queryApplicationService.executeBatchQueriesInParallel(queryFilterMap));
         try {
-            if (queryFilterMap != null) {
-                for (String qid : queryFilterMap.keySet()) {
-                    UUID qUuid = UUID.fromString(qid);
-                    String targetName = queryApplicationService.getQueryById(qUuid)
-                            .map(com.dynamicdashboard.cockpit.query.application.dto.QueryResponseDto::getName)
-                            .orElse("Requête inconnue");
-                    analyticsApplicationService.recordEvent(CreateAnalyticsEventRequestDto.builder()
-                        .action("QUERY_EXECUTION")
-                        .target("QUERY")
-                        .targetId(qUuid)
-                        .targetName(targetName)
-                        .build());
-                }
-            }
+            // Batch execute is used for preloading, do not artificially inflate analytics here.
         } catch (Exception ignored) {}
         return response;
     }

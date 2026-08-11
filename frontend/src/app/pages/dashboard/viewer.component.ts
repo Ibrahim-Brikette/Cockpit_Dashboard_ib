@@ -182,10 +182,13 @@ export class DashboardViewerComponent implements OnInit, OnDestroy {
       this.dashboardsSub = this.dashboardService.dashboards$.subscribe((list) => {
         const found = list.find((d) => d.id === id);
         const prevInterval = this.dashboard?.refreshInterval;
+        const isFirstLoad = !this.dashboard || this.dashboard.id !== id;
         this.dashboard = found ?? null;
         this.loading = false;
         if (found) {
-          this.analyticsService.track('dashboard_view', 'dashboard', found.id, found.name, { dashboardId: found.id, dashboardName: found.name });
+          if (isFirstLoad) {
+            this.analyticsService.track('dashboard_view', 'dashboard', found.id, found.name, { dashboardId: found.id, dashboardName: found.name });
+          }
           if (!Object.keys(this.filterValues).length) {
             this.filterValues = Object.fromEntries(
               found.globalFilters.map((f) => [f.id, f.defaultValue || 'TOUS'])
