@@ -30,7 +30,7 @@ public class QueryController {
 
 
     @GetMapping
-    @PreAuthorize("hasRole('DASHBOARD_VIEWER')")
+
     public ResponseEntity<List<QueryResponseDto>> getAllQueries() {
         return ResponseEntity.ok(queryApplicationService.getAllQueries());
     }

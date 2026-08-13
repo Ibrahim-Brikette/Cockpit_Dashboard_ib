@@ -22,7 +22,7 @@ import java.util.UUID;
 @Setter
 @Entity
 @Table(name = "widget", schema = "cockpit")
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name =  "tenantFilter", condition = "tenant_id = :tenantId")
 public class WidgetEntity extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "dashboard_id", nullable = false)
