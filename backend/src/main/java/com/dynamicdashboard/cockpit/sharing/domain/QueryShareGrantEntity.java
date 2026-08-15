@@ -1,9 +1,10 @@
-package com.dynamicdashboard.cockpit.query.domain;
+package com.dynamicdashboard.cockpit.sharing.domain;
 
 import com.dynamicdashboard.cockpit.identity.domain.UserAccountEntity;
 import com.dynamicdashboard.cockpit.identity.domain.UserGroupEntity;
-import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.ShareLevel;
+import com.dynamicdashboard.cockpit.query.domain.DataQueryEntity;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.AccessLevel;
+import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.ShareLevel;
 import com.dynamicdashboard.cockpit.shared.persistence.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.Getter;

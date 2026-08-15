@@ -4,7 +4,11 @@ import java.util.List;
 import com.dynamicdashboard.cockpit.shared.security.jwt.AudienceValidator;
 import com.dynamicdashboard.cockpit.shared.security.jwt.JwtAbstractAuthoritiesConverter;
 import com.dynamicdashboard.cockpit.shared.security.jwt.JwtAuthoritiesConverter;
-import com.dynamicdashboard.cockpit.shared.security.permission_evaluators.DataQueryPermissionEvaluator;
+import com.dynamicdashboard.cockpit.shared.security.permission_evaluators.DelegatingPermissionEvaluator;
+import com.dynamicdashboard.cockpit.shared.security.permission_evaluators.DomainPermissionEvaluator;
+// Old: individual imports needed when each evaluator was injected as a named field.
+// import com.dynamicdashboard.cockpit.shared.security.permission_evaluators.DataQueryPermissionEvaluator;
+// import com.dynamicdashboard.cockpit.shared.security.permission_evaluators.DashboardQueryPermissionEvaluator;
 import com.dynamicdashboard.cockpit.shared.security.tenant.TenantContextFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +50,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfiguration {
     private final JwtAuthoritiesConverter jwtAuthoritiesConverter;
     private final TenantContextFilter tenantContextFilter;
-    private final DataQueryPermissionEvaluator dataQueryPermissionEvaluator;
+    // Old: individual fields — adding a new domain evaluator meant adding a new field here too.
+    // private final DataQueryPermissionEvaluator dataQueryPermissionEvaluator;
+    // private final DashboardQueryPermissionEvaluator dashboardQueryPermissionEvaluator;
+    private final List<DomainPermissionEvaluator> domainPermissionEvaluators;
+//    It scans the application context, finds every
+//    @Component that implements DomainPermissionEvaluator,
+//    and injects them all into that list automatically. No registration code anywhere.
     @Value("${app.security.enabled:true}")
     private boolean securityEnabled;
     @Bean
@@ -95,9 +105,17 @@ public class SecurityConfiguration {
     }
     @Bean
     public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-        log.error("MethodSecurityExpressionHandler        ");
         var handler = new DefaultMethodSecurityExpressionHandler();
-        handler.setPermissionEvaluator(dataQueryPermissionEvaluator);
+        // Old (v1): single evaluator — DashboardQueryPermissionEvaluator was never reached,
+        // every hasPermission(..., 'Dashboard', ...) silently returned false.
+        // handler.setPermissionEvaluator(dataQueryPermissionEvaluator);
+        //
+        // Old (v2): delegating but hardcoded map — adding a new domain required changing this class.
+        // handler.setPermissionEvaluator(new DelegatingPermissionEvaluator(Map.of(
+        //         "Dashboard", dashboardQueryPermissionEvaluator,
+        //         "Query", dataQueryPermissionEvaluator
+        // )));
+        handler.setPermissionEvaluator(new DelegatingPermissionEvaluator(domainPermissionEvaluators));
         return handler;
     }
 

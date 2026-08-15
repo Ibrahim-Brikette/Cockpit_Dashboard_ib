@@ -51,6 +51,7 @@ public class DashboardMapper {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .sharedWithMe(false)
+                .tenantId(entity.getTenantId())
                 .build();
     }
     private String formatRefreshInterval(com.dynamicdashboard.cockpit.shared.domain.DomainEnums.RefreshInterval interval) {

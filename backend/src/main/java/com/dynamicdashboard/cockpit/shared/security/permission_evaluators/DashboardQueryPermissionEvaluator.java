@@ -1,10 +1,9 @@
 package com.dynamicdashboard.cockpit.shared.security.permission_evaluators;
 
-import com.dynamicdashboard.cockpit.query.domain.DataQueryEntity;
-import com.dynamicdashboard.cockpit.query.repository.DataQueryRepository;
-
-import com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission;
-import com.dynamicdashboard.cockpit.sharing.repository.QueryShareGrantRepository;
+import com.dynamicdashboard.cockpit.dashboard.domain.DashboardEntity;
+import com.dynamicdashboard.cockpit.dashboard.repository.DashboardRepository;
+import com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission;
+import com.dynamicdashboard.cockpit.sharing.repository.DashboardShareGrantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -15,18 +14,18 @@ import java.util.UUID;
 
 // Old: implemented PermissionEvaluator directly — exposed this class to Spring Security's type
 // system, meaning it could accidentally be set as THE evaluator, bypassing the delegator entirely.
-// The compiler would not catch that mistake. Also used the deleted sharing.repository import.
-// public class DataQueryPermissionEvaluator implements PermissionEvaluator {
+// The compiler would not catch that mistake.
+// public class DashboardQueryPermissionEvaluator implements PermissionEvaluator {
 @Component
 @RequiredArgsConstructor
-
-public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
-    private final DataQueryRepository dataQueryRepository;
-    private final  QueryShareGrantRepository queryShareGrantRepository;
+@Slf4j
+public class DashboardQueryPermissionEvaluator implements DomainPermissionEvaluator {
+    private final DashboardRepository dashboardRepository;
+    private final DashboardShareGrantRepository dashboardShareGrantRepository;
 
     @Override
     public String supportedTargetType() {
-        return "Query";
+        return "Dashboard";
     }
 
     // Old: required by PermissionEvaluator contract — object-based overload, always returned false
@@ -38,12 +37,12 @@ public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
 
     @Override
     public boolean hasPermission(Authentication authentication, Serializable targetId, String targetType, Object permission) {
-         if(!"Query".equals(targetType)) {
+        if(!"Dashboard".equals(targetType)) {
             return false;
         }
         boolean hasManageAll = authentication.getAuthorities().stream()
                 .anyMatch(a -> a
-                        .getAuthority().equals(QueryPermission.MANAGE_ALL.getCode()));
+                        .getAuthority().equals(DashboardPermission.MANAGE_ALL.getCode()));
         if(hasManageAll) {
             return true;
         }
@@ -61,9 +60,9 @@ public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
                 .anyMatch(a -> a
                         .getAuthority().equals(permission.toString()));
         if(!hasBasePermission) {
-        return false;
+            return false;
         }
-        DataQueryEntity dataQuery =  dataQueryRepository.findById(UUID.fromString(targetId.toString())).orElse(null);
+        DashboardEntity dataQuery =  dashboardRepository.findById(UUID.fromString(targetId.toString())).orElse(null);
         if(dataQuery == null) {
             return false;
         }
@@ -71,7 +70,7 @@ public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
         if (dataQuery.getOwner().getId().equals(currentUserId)){
             return true;
         }
-        Integer grantedRank = queryShareGrantRepository.findMaxAccessLevelRank(dataQuery.getId(), currentUserId);
+        Integer grantedRank = dashboardShareGrantRepository.findMaxAccessLevelRank(UUID.fromString(targetId.toString()),currentUserId);
         if (grantedRank == null) {
             return false;
         }
@@ -79,10 +78,10 @@ public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
         return grantedRank >= requiredAccessLevelRank(permission.toString());
     }
     private int requiredAccessLevelRank(String permissionCode) {
-        if (permissionCode.equals(QueryPermission.DELETE.getCode())) {
+        if (permissionCode.equals(DashboardPermission.DELETE.getCode())) {
             return 3; // OWNER-tier share required
         }
-        if (permissionCode.equals(QueryPermission.EDIT.getCode())) {
+        if (permissionCode.equals(DashboardPermission.EDIT.getCode())) {
             return 2; // EDIT-tier share required
         }
         return 1; // VIEW, EXECUTE - READ-tier is enough (judgment call - see below)

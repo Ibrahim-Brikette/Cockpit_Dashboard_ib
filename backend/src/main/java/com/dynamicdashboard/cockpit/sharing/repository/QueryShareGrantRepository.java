@@ -1,6 +1,6 @@
-package com.dynamicdashboard.cockpit.query.repository;
+package com.dynamicdashboard.cockpit.sharing.repository;
 
-import com.dynamicdashboard.cockpit.query.domain.QueryShareGrantEntity;
+import com.dynamicdashboard.cockpit.sharing.domain.QueryShareGrantEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

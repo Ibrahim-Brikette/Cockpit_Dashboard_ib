@@ -58,7 +58,7 @@ public class CurrentUserService implements UserDetailsService {
                     "User account not found "
             ));
         }
-        return getDefaultSeededUser();
+        return null;
     }
     @Transactional(readOnly = true)
     public UserAccountEntity getDefaultSeededUser() {

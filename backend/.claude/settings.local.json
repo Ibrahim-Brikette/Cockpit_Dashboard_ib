@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(./mvnw spring-boot:run)",
+      "Bash(find D:\\\\cockpit-dashboard\\\\Cockpit_Dashboard_ib\\\\backend\\\\src:*)"
     ]
   }
 }
