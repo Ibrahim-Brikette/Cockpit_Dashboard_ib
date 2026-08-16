@@ -60,10 +60,20 @@ public class CurrentUserService implements UserDetailsService {
         }
         return null;
     }
-    @Transactional(readOnly = true)
-    public UserAccountEntity getDefaultSeededUser() {
-        return userAccountRepository.findByUsername("ahaddad")
-                .or(() -> userAccountRepository.findByDisplayName("Amine Haddad"))
-                .orElseThrow(() -> new IllegalStateException("Default user 'ahaddad' not found. Please ensure database seed V3__cockpit_seed.sql was executed."));
-    }
+    // -------------------------------------------------------------------------
+    // getDefaultSeededUser() — commented, not deleted
+    // -------------------------------------------------------------------------
+    // Was a hardcoded lookup of "ahaddad" / "Amine Haddad" used as a dev fallback.
+    // Removed because no caller exists anywhere in the codebase (confirmed by grep).
+    // The concept of a "default seeded user" is gone — every operation now requires
+    // a real authenticated user coming from a valid JWT issued by /login.
+    //
+    // @Transactional(readOnly = true)
+    // public UserAccountEntity getDefaultSeededUser() {
+    //     return userAccountRepository.findByUsername("ahaddad")
+    //             .or(() -> userAccountRepository.findByDisplayName("Amine Haddad"))
+    //             .orElseThrow(() -> new IllegalStateException(
+    //                     "Default user 'ahaddad' not found. Please ensure database seed V3__cockpit_seed.sql was executed."));
+    // }
+    // -------------------------------------------------------------------------
 }

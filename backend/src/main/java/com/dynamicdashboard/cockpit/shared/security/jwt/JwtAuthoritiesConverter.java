@@ -2,6 +2,7 @@ package com.dynamicdashboard.cockpit.shared.security.jwt;
 
 import com.dynamicdashboard.cockpit.identity.repository.RolePermissionRepository;
 import com.dynamicdashboard.cockpit.identity.repository.RoleRepository;
+import com.dynamicdashboard.cockpit.shared.security.CockpitAuthProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -39,6 +40,8 @@ public class JwtAuthoritiesConverter implements Converter<Jwt, AbstractAuthentic
 
     private final RolePermissionRepository rolePermissionRepository;
     private final RoleRepository roleRepository;
+    private final CockpitAuthProperties cockpitAuthProperties;
+
 
     @Override
     @Transactional(readOnly = true)
@@ -46,14 +49,22 @@ public class JwtAuthoritiesConverter implements Converter<Jwt, AbstractAuthentic
     public AbstractAuthenticationToken convert(Jwt jwt) {
         List<GrantedAuthority> authorities = new ArrayList<>();
 
-        List<String> roles = roleRepository.findPermissionsByUserId(UUID.fromString(jwt.getSubject()));
+        if(cockpitAuthProperties.getMode() == CockpitAuthProperties.AuthMode.STANDALONE){
+            List<String> roles = roleRepository.findPermissionsByUserId(UUID.fromString(jwt.getSubject()));
 
-        // The live DB hit - one query, every request, resolving roles -> permissions.
-        if (!roles.isEmpty()) {
-            roles.forEach(r -> authorities.add(new SimpleGrantedAuthority("ROLE_" + r)));
-            roles.forEach(r -> System.out.println(r));
-            List<String> permissions = rolePermissionRepository.findPermissionsByRolesNames(roles);
-            permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+            // The live DB hit - one query, every request, resolving roles -> permissions.
+            if (!roles.isEmpty()) {
+                roles.forEach(r -> authorities.add(new SimpleGrantedAuthority("ROLE_" + r)));
+                roles.forEach(r -> System.out.println(r));
+                List<String> permissions = rolePermissionRepository.findPermissionsByRolesNames(roles);
+                permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+            }
+        }else {
+            String rolesClaim = cockpitAuthProperties.getClaims().getRoles();
+            List<String> roles =  jwt.getClaimAsStringList(rolesClaim);
+            if(roles != null){
+                roles.forEach(role  -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role)));
+            }
         }
 
         return new JwtAuthenticationToken(jwt, authorities);

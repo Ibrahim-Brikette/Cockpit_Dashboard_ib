@@ -1,6 +1,7 @@
 package com.dynamicdashboard.cockpit.shared.security;
 
 import com.dynamicdashboard.cockpit.identity.domain.UserAccountEntity;
+import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.AccountStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -35,12 +36,16 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !"LOCKED".equals(userAccount.getAccountStatus());
+        // Old: !"LOCKED".equals(userAccount.getAccountStatus())
+        // Bug: compared String to AccountStatus enum — always returned true (never locked anyone)
+        return AccountStatus.LOCKED != userAccount.getAccountStatus();
     }
 
     @Override
     public boolean isEnabled() {
-        return "ACTIVE".equals(userAccount.getAccountStatus());
+        // Old: "ACTIVE".equals(userAccount.getAccountStatus())
+        // Bug: compared String to AccountStatus enum — always returned false (blocked every login)
+        return AccountStatus.ACTIVE == userAccount.getAccountStatus();
     }
 
     @Override

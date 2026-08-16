@@ -16,10 +16,13 @@ public class JpaAuditConfiguration {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication == null || !authentication.isAuthenticated()
                     || authentication instanceof AnonymousAuthenticationToken) {
-                return Optional.of("ahaddad");
+                // Old: returned "ahaddad" — a hardcoded real username tied to a specific
+                // seeded user. If that user was deleted the string became a dangling reference.
+                // Replaced with "system" — a neutral label that is never tied to any real user row.
+                return Optional.of("system");
             }
             return Optional.ofNullable(authentication.getName()).filter(value -> !value.isBlank())
-                    .or(() -> Optional.of("ahaddad"));
+                    .or(() -> Optional.of("system")); // old fallback was "ahaddad"
         };
     }
 }

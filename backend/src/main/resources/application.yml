@@ -67,9 +67,34 @@ management:
         include: health,info
 
 cockpit:
+  auth:
+    # STANDALONE = cockpit owns login (default).
+    # INTEGRATED = mother app owns login; set jwk-uri below.
+    mode: ${COCKPIT_AUTH_MODE:STANDALONE}
+    # INTEGRATED only — mother app's public key endpoint:
+    # jwk-uri: ${COCKPIT_JWK_URI:https://auth.example.com/.well-known/jwks.json}
+    claims:
+      # Configure these only in INTEGRATED mode if the mother app uses different claim names.
+      user-id: ${COCKPIT_CLAIM_USER_ID:sub}
+      tenant-id: ${COCKPIT_CLAIM_TENANT_ID:tenantId}
+      roles: ${COCKPIT_CLAIM_ROLES:roles}
+      session-id: ${COCKPIT_CLAIM_SESSION_ID:sessionId}
   security:
     allowed-origins: ${COCKPIT_ALLOWED_ORIGINS:http://localhost:5173}
     required-audience: ${COCKPIT_JWT_AUDIENCE:cockpit-api}
+
+app:
+  security:
+    jwt:
+      # Spec 5.2: "Issuer (iss): exact domain, validated on every request."
+      # Must match what the frontend sends — use the actual backend origin in prod.
+      issuer: ${COCKPIT_JWT_ISSUER:http://localhost:8080}
+      # Spec 5.2: "Audience (aud): dashboard-cockpit-api."
+      audience: ${COCKPIT_JWT_AUDIENCE_VALUE:dashboard-cockpit-api}
+      # Spec 5.2: Access token expiry = 15 minutes.
+      access-token-ttl-minutes: 15
+      # Spec 5.2: Refresh token expiry = 8 hours sliding, max 7 days.
+      refresh-token-ttl-hours: 8
 
 logging:
   level:

@@ -44,7 +44,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties(SecurityProperties.class)
+@EnableConfigurationProperties({SecurityProperties.class,CockpitAuthProperties.class})
 @Slf4j
 @RequiredArgsConstructor
 public class SecurityConfiguration {
@@ -54,11 +54,12 @@ public class SecurityConfiguration {
     // private final DataQueryPermissionEvaluator dataQueryPermissionEvaluator;
     // private final DashboardQueryPermissionEvaluator dashboardQueryPermissionEvaluator;
     private final List<DomainPermissionEvaluator> domainPermissionEvaluators;
-//    It scans the application context, finds every
-//    @Component that implements DomainPermissionEvaluator,
-//    and injects them all into that list automatically. No registration code anywhere.
+    //    It scans the application context, finds every
+    //    @Component that implements DomainPermissionEvaluator,
+    //    and injects them all into that list automatically. No registration code anywhere.
     @Value("${app.security.enabled:true}")
     private boolean securityEnabled;
+    private final CockpitAuthProperties  cockpitAuthProperties;
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -77,11 +78,14 @@ public class SecurityConfiguration {
                     auth.requestMatchers("/actuator/health", "/actuator/info").permitAll()
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     if (securityEnabled) {
-                        auth.requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
-                                .anyRequest().authenticated();
+                        if (cockpitAuthProperties.getMode() == CockpitAuthProperties.AuthMode.STANDALONE) {
+                            auth.requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll();
+                        }
+                        auth.anyRequest().authenticated();
                     } else {
                         auth.anyRequest().permitAll();
                     }
+
                 })
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthoritiesConverter))
@@ -93,11 +97,17 @@ public class SecurityConfiguration {
     @Bean
     CorsConfigurationSource corsConfigurationSource(SecurityProperties securityProperties) {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*"));
+        // Old: allowedOrigins = ["*"] with allowCredentials = false.
+        // Changed because spec 5.2 requires the refresh token in an HttpOnly cookie.
+        // Browsers refuse to attach cookies to cross-origin requests when either:
+        //   (a) allowCredentials is false, or
+        //   (b) allowedOrigins is the wildcard "*" (forbidden with allowCredentials=true).
+        // Fix: use the explicit origin list from SecurityProperties and enable credentials.
+        configuration.setAllowedOrigins(securityProperties.getAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id"));
         configuration.setExposedHeaders(List.of("X-Request-Id"));
-        configuration.setAllowCredentials(false);
+        configuration.setAllowCredentials(true); // required for HttpOnly refresh-token cookie delivery
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
