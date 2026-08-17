@@ -23,6 +23,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -44,6 +45,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableScheduling
 @EnableConfigurationProperties({SecurityProperties.class,CockpitAuthProperties.class})
 @Slf4j
 @RequiredArgsConstructor
@@ -79,7 +81,13 @@ public class SecurityConfiguration {
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     if (securityEnabled) {
                         if (cockpitAuthProperties.getMode() == CockpitAuthProperties.AuthMode.STANDALONE) {
-                            auth.requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll();
+                            auth.requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/forgot-password",
+                                "/api/auth/password-reset",
+                                "/api/auth/verify-email"   // account activation — user has no token yet (status=PENDING)
+                            ).permitAll();
                         }
                         auth.anyRequest().authenticated();
                     } else {

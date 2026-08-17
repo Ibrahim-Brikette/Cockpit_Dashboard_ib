@@ -1,9 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep:*)",
-      "Bash(./mvnw spring-boot:run)",
-      "Bash(find D:\\\\cockpit-dashboard\\\\Cockpit_Dashboard_ib\\\\backend\\\\src:*)"
+      "Bash(xargs sed -i 's/com\\\\.dynamicdashboard\\\\.cockpit\\\\.shared\\\\.security\\\\.auth\\\\.service\\\\.PasswordResetRequest/com.dynamicdashboard.cockpit.shared.security.auth.dto.PasswordResetRequest/g;:*)"
     ]
   }
 }
