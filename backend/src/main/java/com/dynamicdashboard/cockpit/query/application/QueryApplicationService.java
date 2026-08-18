@@ -35,7 +35,6 @@ import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.QueryTransformatio
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.QueryVisibility;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.SortDirection;
 import com.dynamicdashboard.cockpit.shared.security.CurrentUserService;
-import com.dynamicdashboard.cockpit.shared.security.tenant.TenantContext;
 import com.dynamicdashboard.cockpit.shared.utils.ParsingUtils;
 import java.util.List;
 import java.util.Map;
@@ -66,20 +65,19 @@ public class QueryApplicationService {
     private final com.dynamicdashboard.cockpit.audit.application.AuditApplicationService auditApplicationService;
     private final com.dynamicdashboard.cockpit.dashboard.repository.WidgetRepository widgetRepository;
     private final com.dynamicdashboard.cockpit.datasource.application.VaultSecretService vaultSecretService;
+    private final com.dynamicdashboard.cockpit.shared.cache.RedisCacheService redisCacheService;
+    private final com.dynamicdashboard.cockpit.shared.sse.SseNotificationService sseNotificationService;
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
     private QueryApplicationService self;
     private static final java.util.Map<String, com.zaxxer.hikari.HikariDataSource> HIKARI_DATA_SOURCES = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, CachedQueryResult> FAST_QUERY_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private record WorkingCredentials(String host, String password) {}
-    private record CachedQueryResult(long timestamp, List<Map<String, Object>> data) {}
     @Transactional(readOnly = true)
     public List<Map<String, Object>> executeQueryData(UUID queryId, List<com.dynamicdashboard.cockpit.query.application.dto.RuntimeQueryFilterDto> filters) {
-        long now = System.currentTimeMillis();
-        String queryCacheKey = queryId.toString() + "_" + (filters != null ? filters.hashCode() : 0);
-        CachedQueryResult cached = FAST_QUERY_CACHE.get(queryCacheKey);
-        if (cached != null && (now - cached.timestamp()) < 3000) {
-            return cached.data();
+        String queryCacheKey = "query:data:" + queryId.toString() + "_" + (filters != null ? filters.hashCode() : 0);
+        java.util.List<java.util.Map<String, Object>> cached = redisCacheService.get(queryCacheKey, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>() {});
+        if (cached != null) {
+            return cached;
         }
         DataQueryEntity query = dataQueryRepository.findById(queryId).orElse(null);
         if (query == null) return java.util.Collections.emptyList();
@@ -235,7 +233,7 @@ public class QueryApplicationService {
             int port = conn.getDbPort();
             String dbName = conn.getDbName();
             String username = conn.getDbUsername();
-            org.slf4j.LoggerFactory.getLogger(QueryApplicationService.class).info("Executing generated SQL for queryId {}: {}", queryId, sql);
+            org.slf4j.LoggerFactory.getLogger(QueryApplicationService.class).debug("Executing generated SQL for queryId {}: {}", queryId, sql);
             try (java.sql.Connection jdbcConn = createResilientConnection(conn != null ? conn.getId() : null, strategy, host, port, dbName, username, password);
                  java.sql.Statement stmt = jdbcConn.createStatement();
                  java.sql.ResultSet rs = stmt.executeQuery(sql)) {
@@ -257,8 +255,8 @@ public class QueryApplicationService {
                     }
                     resultRows.add(row);
                 }
-                org.slf4j.LoggerFactory.getLogger(QueryApplicationService.class).info("Successfully retrieved {} rows for queryId {}", resultRows.size(), queryId);
-                FAST_QUERY_CACHE.put(queryCacheKey, new CachedQueryResult(now, resultRows));
+                org.slf4j.LoggerFactory.getLogger(QueryApplicationService.class).debug("Successfully retrieved {} rows for queryId {}", resultRows.size(), queryId);
+                redisCacheService.put(queryCacheKey, resultRows);
                 return resultRows;
             }
         } catch (Exception e) {
@@ -567,12 +565,6 @@ public class QueryApplicationService {
                 .collect(Collectors.toList());
     }
     @Transactional(readOnly = true)
-    public List<QueryResponseDto> getAllByTenantIdQueries() {
-        return dataQueryRepository.findAllByTenantId(TenantContext.get()).stream()
-                .map(queryMapper::toDto)
-                .collect(Collectors.toList());
-    }
-    @Transactional(readOnly = true)
     public Optional<QueryResponseDto> getQueryById(UUID id) {
         return dataQueryRepository.findById(id).map(queryMapper::toDto);
     }
@@ -596,7 +588,8 @@ public class QueryApplicationService {
             deleteChildEntities(updatedQuery.getId());
             saveChildEntities(updatedQuery, dto);
             auditApplicationService.logEvent("Modification de requête", "QUERY", updatedQuery.getId(), updatedQuery.getQueryName(), null);
-            FAST_QUERY_CACHE.clear();
+            redisCacheService.evictByPrefix("query");
+            sseNotificationService.broadcast("queries_changed");
             return queryMapper.toDto(updatedQuery);
         });
     }
@@ -610,12 +603,12 @@ public class QueryApplicationService {
             }
             deleteChildEntities(query.getId());
             auditApplicationService.logEvent("Suppression de requête", "QUERY", query.getId(), query.getQueryName(), null);
-            FAST_QUERY_CACHE.clear();
+            redisCacheService.evictByPrefix("query");
+            sseNotificationService.broadcast("queries_changed");
             dataQueryRepository.delete(query);
             return true;
         }).orElse(false);
     }
-
     @Transactional
     public Optional<QueryResponseDto> duplicateQuery(UUID id) {
         return dataQueryRepository.findById(id).map(source -> {

@@ -285,6 +285,101 @@ import { CommonModule } from '@angular/common';
       <g *ngSwitchCase="'LoaderCircle'">
         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
       </g>
+
+      <g *ngSwitchCase="'RefreshCw'">
+        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+        <path d="M16 16h5v5" />
+      </g>
+
+      <g *ngSwitchCase="'MoreHorizontal'">
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="19" cy="12" r="1" />
+        <circle cx="5" cy="12" r="1" />
+      </g>
+
+      <g *ngSwitchCase="'CheckCircle2'">
+        <path d="M21.801 10A10 10 0 1 1 17 3.335" />
+        <path d="m9 11 3 3L22 4" />
+      </g>
+
+      <g *ngSwitchCase="'ShieldAlert'">
+        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+        <path d="M12 8v4" />
+        <path d="M12 16h.01" />
+      </g>
+
+      <g *ngSwitchCase="'AlertTriangle'">
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </g>
+
+      <g *ngSwitchCase="'CircleAlert'">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </g>
+
+      <g *ngSwitchCase="'TrendingUp'">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+        <polyline points="16 7 22 7 22 13" />
+      </g>
+
+      <g *ngSwitchCase="'ChartNoAxesCombined'">
+        <path d="M12 16v5" />
+        <path d="M16 14v7" />
+        <path d="M20 10v11" />
+        <path d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15" />
+        <path d="M4 18v3" />
+        <path d="M8 14v7" />
+      </g>
+
+      <g *ngSwitchCase="'MousePointerClick'">
+        <path d="M14 4.1 12 6" />
+        <path d="m5.1 8-2.9-.8" />
+        <path d="m6 12-1.9 2" />
+        <path d="M7.2 2.2 8 5.1" />
+        <path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z" />
+      </g>
+
+      <g *ngSwitchCase="'MousePointerClickIcon'">
+        <path d="M14 4.1 12 6" />
+        <path d="m5.1 8-2.9-.8" />
+        <path d="m6 12-1.9 2" />
+        <path d="M7.2 2.2 8 5.1" />
+        <path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z" />
+      </g>
+
+      <g *ngSwitchCase="'FileSearch'">
+        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+        <path d="M4.268 21a2 2 0 0 0 1.634.999H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3" />
+        <path d="m9 18-1.5-1.5" />
+        <circle cx="5" cy="14" r="3" />
+      </g>
+
+      <g *ngSwitchCase="'Activity'">
+        <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
+      </g>
+
+      <g *ngSwitchCase="'BellRing'">
+        <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+        <path d="M22 8c0-2.3-.8-4.3-2-6" />
+        <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+        <path d="M4 2C2.8 3.7 2 5.7 2 8" />
+      </g>
+
+      <g *ngSwitchCase="'CheckCheck'">
+        <path d="M18 6 7 17l-5-5" />
+        <path d="m22 10-7.5 7.5L13 16" />
+      </g>
+
+      <g *ngSwitchCase="'ArrowRight'">
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+      </g>
+
       <g *ngSwitchDefault>
         <circle cx="12" cy="12" r="8" />
       </g>

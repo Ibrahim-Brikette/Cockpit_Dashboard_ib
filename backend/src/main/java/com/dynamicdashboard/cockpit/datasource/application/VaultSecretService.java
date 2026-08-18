@@ -55,7 +55,8 @@ public class VaultSecretService {
                     }
                 }
             } catch (Exception e) {
-                log.warn("Vault read attempt failed for key {}; error: {}", key, e.getMessage());
+
+                log.debug("Vault read attempt failed for key {}; error: {}", key, e.getMessage());
             }
         }
         String inMem = inMemorySecrets.get(secretKey);

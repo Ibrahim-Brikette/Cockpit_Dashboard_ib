@@ -6,6 +6,8 @@ import { BehaviorSubject, Observable, map } from 'rxjs';
 import { Dashboard } from '@core/models/types';
 import { uid } from '@core/utils/utils';
 import { AuditService } from '@pages/settings/services/audit.service';
+import { SseService } from '@core/services/sse.service';
+
 const nowIso = () => new Date().toISOString();
 const API_URL = '/api';
 function getStoredDashboards(): Dashboard[] {
@@ -29,9 +31,16 @@ function saveStoredDashboards(list: Dashboard[]): void {
 export class DashboardService {
   private dashboardsSubject = new BehaviorSubject<Dashboard[]>(getStoredDashboards());
   dashboards$: Observable<Dashboard[]> = this.dashboardsSubject.asObservable();
-  constructor(private http: HttpClient, private ngZone: NgZone, private auditService: AuditService) {
+  
+  constructor(private http: HttpClient, private ngZone: NgZone, private auditService: AuditService, private sseService: SseService) {
     this.loadFromBackend();
+    this.sseService.events$.subscribe(event => {
+      if (event.channel === 'queries_changed' || event.channel === 'dashboards_changed') {
+        this.loadFromBackend();
+      }
+    });
   }
+
   private setDashboards(list: Dashboard[]) {
     saveStoredDashboards(list);
     this.ngZone.run(() => this.dashboardsSubject.next(list));

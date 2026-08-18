@@ -189,9 +189,100 @@ export interface Datum {
   [key: string]: string | number;
 }
 export type SourceRow = Record<string, string | number | null>;
+
+
 export const DATA_SOURCES: DataSource[] = [];
 export const MOCK_SOURCE_ROWS: Record<string, SourceRow[]> = {};
 export const MOCK_QUERIES: DataQuery[] = [];
 export const QUERY_DATASETS: Record<string, Datum[]> = {};
 export const MOCK_DASHBOARDS: Dashboard[] = [];
 export const DASHBOARD_TEMPLATES: any[] = [];
+
+export type AlertSeverity = 'critical' | 'warning' | 'info';
+export type AlertStatus = 'active' | 'acknowledged' | 'snoozed' | 'resolved';
+export type AlertMetric = 'total' | 'average' | 'maximum' | 'minimum';
+export type AlertComparisonOperator = 'gt' | 'lt' | 'eq';
+export type AlertChannel = 'inApp' | 'email' | 'sms' | 'whatsapp';
+
+export interface AlertChannelConfig {
+  channel: AlertChannel;
+  enabled: boolean;
+  recipient?: string;
+}
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  queryId: string;
+  metric: AlertMetric;
+  operator: AlertComparisonOperator;
+  threshold: number;
+  severity: AlertSeverity;
+  enabled: boolean;
+  channels: AlertChannelConfig[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AlertEvent {
+  id: string;
+  ruleId: string;
+  ruleName: string;
+  queryName: string;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  metric: AlertMetric;
+  operator: AlertComparisonOperator;
+  threshold: number;
+  observedValue: number;
+  message: string;
+  triggeredAt: string;
+  acknowledgedAt?: string;
+  resolvedAt?: string;
+  snoozedUntil?: string;
+  deliveredChannels: AlertChannel[];
+}
+
+
+export type AnalyticsAction =
+  | 'dashboard_view'
+  | 'dashboard_click'
+  | 'dashboard_impression'
+  | 'widget_impression'
+  | 'widget_interaction'
+  | 'raw_data_view'
+  | 'raw_data_export'
+  | 'query_execution';
+
+export type AnalyticsTarget = 'dashboard' | 'widget' | 'query';
+
+export interface AnalyticsEvent {
+  id: string;
+  userId: string;
+  userName: string;
+  action: AnalyticsAction;
+  target: AnalyticsTarget;
+  targetId: string;
+  targetName: string;
+  timestamp: string;
+  dashboardId?: string;
+  dashboardName?: string;
+}
+
+export interface AnalyticsCounters {
+  dashboardViews: Record<string, number>;
+  widgetRawDataViews: Record<string, number>;
+  widgetInteractions: Record<string, number>;
+  queryExecutions: Record<string, number>;
+  impressions: number;
+  clicks: number;
+}
+
+export interface AnalyticsDailyPoint {
+  date: string;
+  activeUsers: number;
+  dashboardViews: number;
+  rawDataViews: number;
+  clicks: number;
+}
+

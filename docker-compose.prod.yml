@@ -20,6 +20,13 @@ services:
     networks:
       - prod-net
 
+  redis:
+    image: redis:7-alpine
+    container_name: prod-redis
+    restart: unless-stopped
+    networks:
+      - prod-net
+
   backend:
     image: ghcr.io/moezkr/cockpit-dashboard-backend:latest
     container_name: prod-backend
@@ -27,7 +34,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     environment:
+      REDIS_HOST: redis
       COCKPIT_DB_URL: jdbc:postgresql://postgres:5432/cockpit
       COCKPIT_DB_USER: ${POSTGRES_USER:-postgres}
       COCKPIT_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
