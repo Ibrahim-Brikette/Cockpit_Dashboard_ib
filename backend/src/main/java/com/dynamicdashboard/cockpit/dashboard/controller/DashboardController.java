@@ -3,15 +3,10 @@ package com.dynamicdashboard.cockpit.dashboard.controller;
 import com.dynamicdashboard.cockpit.dashboard.application.DashboardApplicationService;
 import com.dynamicdashboard.cockpit.dashboard.application.dto.DashboardRequestDto;
 import com.dynamicdashboard.cockpit.dashboard.application.dto.DashboardResponseDto;
-import com.dynamicdashboard.cockpit.shared.security.annotation.dashboard.CanCreateDashboard;
-import com.dynamicdashboard.cockpit.shared.security.annotation.dashboard.CanDeleteDashboard;
-import com.dynamicdashboard.cockpit.shared.security.annotation.dashboard.CanDuplicateDashboard;
-import com.dynamicdashboard.cockpit.shared.security.annotation.dashboard.CanEditDashboard;
-import com.dynamicdashboard.cockpit.shared.security.annotation.dashboard.CanListDashboards;
-import com.dynamicdashboard.cockpit.shared.security.annotation.dashboard.CanViewDashboard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,13 +30,13 @@ public class DashboardController {
     private final DashboardApplicationService dashboardApplicationService;
 
     @GetMapping
-    @CanListDashboards
+    @PreAuthorize("hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).VIEW.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).MANAGE_ALL.code)")
     public ResponseEntity<List<DashboardResponseDto>> getAllDashboards() {
         return ResponseEntity.ok(dashboardApplicationService.getAllDashboards());
     }
 
     @GetMapping("/{id}")
-    @CanViewDashboard
+    @PreAuthorize("hasPermission(#id, 'Dashboard', T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).VIEW.code)")
     public ResponseEntity<DashboardResponseDto> getDashboardById(@PathVariable UUID id) {
         return dashboardApplicationService.getDashboardById(id)
                 .map(ResponseEntity::ok)
@@ -49,14 +44,14 @@ public class DashboardController {
     }
 
     @PostMapping
-    @CanCreateDashboard
+    @PreAuthorize("hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).CREATE.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).MANAGE_ALL.code)")
     public ResponseEntity<DashboardResponseDto> createDashboard(@RequestBody DashboardRequestDto dto) {
         DashboardResponseDto created = dashboardApplicationService.createDashboard(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    @CanEditDashboard
+    @PreAuthorize("hasPermission(#id, 'Dashboard', T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).EDIT.code)")
     public ResponseEntity<DashboardResponseDto> updateDashboard(@PathVariable UUID id, @RequestBody DashboardRequestDto dto) {
         return dashboardApplicationService.updateDashboard(id, dto)
                 .map(ResponseEntity::ok)
@@ -64,7 +59,7 @@ public class DashboardController {
     }
 
     @DeleteMapping("/{id}")
-    @CanDeleteDashboard
+    @PreAuthorize("hasPermission(#id, 'Dashboard', T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).DELETE.code)")
     public ResponseEntity<Void> deleteDashboard(@PathVariable UUID id) {
         if (dashboardApplicationService.deleteDashboard(id)) {
             return ResponseEntity.noContent().build();
@@ -73,7 +68,7 @@ public class DashboardController {
     }
 
     @PostMapping("/{id}/duplicate")
-    @CanDuplicateDashboard
+    @PreAuthorize("hasPermission(#id, 'Dashboard', T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).EDIT.code) and (hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).CREATE.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).MANAGE_ALL.code))")
     public ResponseEntity<DashboardResponseDto> duplicateDashboard(@PathVariable UUID id) {
         return dashboardApplicationService.duplicateDashboard(id)
                 .map(res -> ResponseEntity.status(HttpStatus.CREATED).body(res))
@@ -81,7 +76,7 @@ public class DashboardController {
     }
 
     @PatchMapping("/{id}/favorite")
-    @CanViewDashboard
+    @PreAuthorize("hasPermission(#id, 'Dashboard', T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).VIEW.code)")
     public ResponseEntity<DashboardResponseDto> toggleFavorite(@PathVariable UUID id) {
         return dashboardApplicationService.toggleFavorite(id)
                 .map(ResponseEntity::ok)
@@ -89,7 +84,7 @@ public class DashboardController {
     }
 
     @PatchMapping("/{id}/archive")
-    @CanEditDashboard
+    @PreAuthorize("hasPermission(#id, 'Dashboard', T(com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission).EDIT.code)")
     public ResponseEntity<DashboardResponseDto> toggleArchive(@PathVariable UUID id) {
         return dashboardApplicationService.toggleArchive(id)
                 .map(ResponseEntity::ok)

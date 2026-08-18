@@ -20,7 +20,7 @@ public class CatalogController {
     private final CatalogApplicationService catalogApplicationService;
 
     @GetMapping("/data-sources")
-    @PreAuthorize("hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DatasourcePermission).VIEW.code)")
+    @PreAuthorize("hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DatasourcePermission).VIEW.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.DatasourcePermission).MANAGE_ALL.code)")
     public ResponseEntity<List<DataSourceDto>> getAllDataSources() {
         return ResponseEntity.ok(catalogApplicationService.getAllDataSources());
     }

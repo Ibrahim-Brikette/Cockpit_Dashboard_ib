@@ -4,19 +4,10 @@ import com.dynamicdashboard.cockpit.query.application.QueryApplicationService;
 import com.dynamicdashboard.cockpit.query.application.dto.QueryRequestDto;
 import com.dynamicdashboard.cockpit.query.application.dto.QueryResponseDto;
 import com.dynamicdashboard.cockpit.query.application.dto.RuntimeQueryFilterDto;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanBatchExecuteQueries;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanCreateQuery;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanDeleteQuery;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanDuplicateQuery;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanEditQuery;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanExecuteQuery;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanListQueries;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanPreviewQuery;
-import com.dynamicdashboard.cockpit.shared.security.annotation.query.CanViewQuery;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,24 +27,20 @@ import java.util.UUID;
 @RequestMapping("/api/queries")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@Slf4j
 public class QueryController {
 
     private final QueryApplicationService queryApplicationService;
 
     @GetMapping
+    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN') or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).VIEW.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).MANAGE_ALL.code)")
     public ResponseEntity<List<QueryResponseDto>> getAllQueries() {
         return ResponseEntity.ok(queryApplicationService.getAllQueries());
     }
 
-    @GetMapping("/tenant")
-    @CanListQueries
-    public ResponseEntity<List<QueryResponseDto>> getAllByTenantIdQueries() {
-        return ResponseEntity.ok(queryApplicationService.getAllByTenantIdQueries());
-    }
+
 
     @GetMapping("/{id}")
-    @CanViewQuery
+    @PreAuthorize("hasPermission(#id, 'Query', T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).VIEW.code)")
     public ResponseEntity<QueryResponseDto> getQueryById(@PathVariable UUID id) {
         return queryApplicationService.getQueryById(id)
                 .map(ResponseEntity::ok)
@@ -61,14 +48,14 @@ public class QueryController {
     }
 
     @PostMapping
-    @CanCreateQuery
+    @PreAuthorize("hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).CREATE.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).MANAGE_ALL.code)")
     public ResponseEntity<QueryResponseDto> createQuery(@RequestBody QueryRequestDto dto) {
         QueryResponseDto created = queryApplicationService.createQuery(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    @CanEditQuery
+    @PreAuthorize("hasPermission(#id, 'Query', T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).EDIT.code)")
     public ResponseEntity<QueryResponseDto> updateQuery(@PathVariable UUID id, @RequestBody QueryRequestDto dto) {
         return queryApplicationService.updateQuery(id, dto)
                 .map(ResponseEntity::ok)
@@ -76,7 +63,7 @@ public class QueryController {
     }
 
     @DeleteMapping("/{id}")
-    @CanDeleteQuery
+    @PreAuthorize("hasPermission(#id, 'Query', T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).DELETE.code)")
     public ResponseEntity<Void> deleteQuery(@PathVariable UUID id) {
         if (queryApplicationService.deleteQuery(id)) {
             return ResponseEntity.noContent().build();
@@ -85,7 +72,7 @@ public class QueryController {
     }
 
     @PostMapping("/{id}/duplicate")
-    @CanDuplicateQuery
+    @PreAuthorize("hasPermission(#id, 'Query', T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).VIEW.code) and (hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).CREATE.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).MANAGE_ALL.code))")
     public ResponseEntity<QueryResponseDto> duplicateQuery(@PathVariable UUID id) {
         return queryApplicationService.duplicateQuery(id)
                 .map(res -> ResponseEntity.status(HttpStatus.CREATED).body(res))
@@ -93,7 +80,7 @@ public class QueryController {
     }
 
     @RequestMapping(value = "/{id}/execute", method = {RequestMethod.GET, RequestMethod.POST})
-    @CanExecuteQuery
+    @PreAuthorize("hasPermission(#id, 'Query', T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).EXECUTE.code)")
     public ResponseEntity<List<Map<String, Object>>> executeQueryData(
             @PathVariable UUID id,
             @RequestBody(required = false) List<RuntimeQueryFilterDto> filters) {
@@ -101,14 +88,14 @@ public class QueryController {
     }
 
     @PostMapping("/batch-execute")
-    @CanBatchExecuteQueries
+    @PreAuthorize("hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).EXECUTE.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).MANAGE_ALL.code)")
     public ResponseEntity<Map<String, List<Map<String, Object>>>> executeBatchQueriesInParallel(
             @RequestBody Map<String, List<RuntimeQueryFilterDto>> queryFilterMap) {
         return ResponseEntity.ok(queryApplicationService.executeBatchQueriesInParallel(queryFilterMap));
     }
 
     @PostMapping("/preview")
-    @CanPreviewQuery
+    @PreAuthorize("hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).VIEW.code) or hasAuthority(T(com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission).MANAGE_ALL.code)")
     public ResponseEntity<List<Map<String, Object>>> previewDraftQuery(@RequestBody QueryRequestDto dto) {
         return ResponseEntity.ok(queryApplicationService.previewDraftQuery(dto));
     }
