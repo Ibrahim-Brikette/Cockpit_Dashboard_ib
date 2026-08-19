@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
-    "dev": "ng serve"
+    "dev": "ng serve --proxy-config proxy.conf.json"
   },
   "dependencies": {
     "@angular/common": "^21.2.18",

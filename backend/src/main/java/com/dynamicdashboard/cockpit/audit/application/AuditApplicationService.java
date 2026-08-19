@@ -7,26 +7,36 @@ import com.dynamicdashboard.cockpit.audit.repository.AuditEventRepository;
 import com.dynamicdashboard.cockpit.identity.domain.UserAccountEntity;
 import com.dynamicdashboard.cockpit.identity.repository.UserAccountRepository;
 import com.dynamicdashboard.cockpit.shared.security.CurrentUserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuditApplicationService {
+
+    /** Nom d'événement standard utilisé pour toutes les exécutions de requêtes (widgets et manuelles). */
+    public static final String EVENT_QUERY_EXECUTION = "Exécution de requête";
+
     private final AuditEventRepository auditEventRepository;
     private final UserAccountRepository userAccountRepository;
     private final CurrentUserService currentUserService;
     private final AuditMapper auditMapper;
+
     @Transactional
     public AuditEventDto logAuditEvent(CreateAuditEventRequestDto dto) {
         UserAccountEntity user = currentUserService.getCurrentUser();
-        String username = user != null ? user.getUsername() : "ahaddad";
+        String username = user != null ? user.getUsername() : null;
         return logEvent(dto.getEventType(), dto.getTargetType(), dto.getTargetId(), dto.getDetailsJson(), username);
     }
+
     @Transactional
     public AuditEventDto logEvent(String eventType, String targetType, Object targetId, String detailsJson, String username) {
         UserAccountEntity actor = null;
@@ -36,7 +46,13 @@ public class AuditApplicationService {
                     .orElse(null);
         }
         if (actor == null) {
-            actor = currentUserService.getCurrentUser();
+            // Pas de fallback vers un utilisateur codé en dur : si on ne sait pas qui a fait
+            // l'action, l'audit reste honnête et affiche "Système" plutôt qu'un faux nom.
+            try {
+                actor = currentUserService.getCurrentUser();
+            } catch (Exception e) {
+                log.debug("Impossible de résoudre l'utilisateur courant pour l'audit: {}", e.getMessage());
+            }
         }
         AuditEventEntity event = new AuditEventEntity();
         event.setActorUser(actor);
@@ -52,17 +68,76 @@ public class AuditApplicationService {
             }
         }
         event.setDetailsJson(detailsJson);
-        event.setSourceIp("127.0.0.1");
-        event.setUserAgent("Chrome");
+        event.setSourceIp(resolveClientIp());
+        event.setUserAgent(resolveUserAgent());
         event.setOccurredAt(Instant.now());
         AuditEventEntity saved = auditEventRepository.save(event);
         return auditMapper.toDto(saved);
     }
+
+    /** Récupère la vraie IP de la requête HTTP en cours (au lieu de "127.0.0.1" codé en dur). */
+    private String resolveClientIp() {
+        HttpServletRequest request = currentHttpRequest();
+        if (request == null) return "unknown";
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    /** Récupère le vrai User-Agent de la requête HTTP en cours (au lieu de "Chrome" codé en dur). */
+    private String resolveUserAgent() {
+        HttpServletRequest request = currentHttpRequest();
+        if (request == null) return "unknown";
+        String ua = request.getHeader("User-Agent");
+        return ua != null ? ua : "unknown";
+    }
+
+    private HttpServletRequest currentHttpRequest() {
+        try {
+            ServletRequestAttributes attrs =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            return attrs != null ? attrs.getRequest() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Pagine/limite les événements retournés : évite de charger toute la table en mémoire
+     *  à chaque affichage de la page Paramètres > Audit. */
     @Transactional(readOnly = true)
     public List<AuditEventDto> getRecentEvents() {
-        return auditEventRepository.findAllByOrderByOccurredAtDesc()
+        Instant threshold = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS);
+        return auditEventRepository.findTop200ByOccurredAtAfterOrderByOccurredAtDesc(threshold)
                 .stream()
                 .map(auditMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    /** Purge périodique — voir AuditPurgeScheduler. */
+    @Transactional
+    public long purgeOlderThan(Instant threshold) {
+        long count = auditEventRepository.countByOccurredAtBefore(threshold);
+        auditEventRepository.deleteByOccurredAtBefore(threshold);
+        return count;
+    }
+
+    /** Alimente la card "Requêtes les plus exécutées" du KPI admin, à partir de la table
+     *  d'audit (donc données réelles), avec une agrégation faite en base (pré-agrégée),
+     *  pas une boucle Java sur tous les événements. */
+    @Transactional(readOnly = true)
+    public List<com.dynamicdashboard.cockpit.audit.application.dto.AuditTargetCountDto> getTopQueryExecutions(int limit) {
+        return auditEventRepository
+                .countGroupedByTarget(
+                        EVENT_QUERY_EXECUTION,
+                        org.springframework.data.domain.PageRequest.of(0, Math.max(1, limit)))
+                .stream()
+                .map(row -> com.dynamicdashboard.cockpit.audit.application.dto.AuditTargetCountDto.builder()
+                        .targetId(row.getTargetId())
+                        .label(row.getLabel())
+                        .total(row.getTotal())
+                        .build())
                 .collect(Collectors.toList());
     }
 }

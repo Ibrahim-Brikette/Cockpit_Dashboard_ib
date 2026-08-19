@@ -8,7 +8,7 @@ public class AuditMapper {
         if (entity == null) return null;
         return AuditEventDto.builder()
                 .id(entity.getId())
-                .actorName(entity.getActorUser() != null ? entity.getActorUser().getDisplayName() : "Amine Haddad")
+                .actorName(entity.getActorUser() != null ? entity.getActorUser().getDisplayName() : "Système")
                 .eventType(entity.getEventType())
                 .targetType(entity.getTargetType())
                 .targetId(entity.getTargetId())

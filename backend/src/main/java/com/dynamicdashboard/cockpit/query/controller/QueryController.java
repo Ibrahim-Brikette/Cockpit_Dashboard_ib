@@ -1,6 +1,5 @@
 package com.dynamicdashboard.cockpit.query.controller;
-import com.dynamicdashboard.cockpit.analytics.application.AnalyticsApplicationService;
-import com.dynamicdashboard.cockpit.analytics.application.dto.CreateAnalyticsEventRequestDto;
+import com.dynamicdashboard.cockpit.audit.application.AuditApplicationService;
 import com.dynamicdashboard.cockpit.query.application.QueryApplicationService;
 import com.dynamicdashboard.cockpit.query.application.dto.QueryRequestDto;
 import com.dynamicdashboard.cockpit.query.application.dto.QueryResponseDto;
@@ -24,7 +23,7 @@ import java.util.UUID;
 @CrossOrigin(origins = "*")
 public class QueryController {
     private final QueryApplicationService queryApplicationService;
-    private final AnalyticsApplicationService analyticsApplicationService;
+    private final AuditApplicationService auditApplicationService;
     @GetMapping
     public ResponseEntity<List<QueryResponseDto>> getAllQueries() {
         return ResponseEntity.ok(queryApplicationService.getAllQueries());
@@ -63,15 +62,13 @@ public class QueryController {
     public ResponseEntity<List<java.util.Map<String, Object>>> executeQueryData(@PathVariable UUID id, @RequestBody(required = false) List<com.dynamicdashboard.cockpit.query.application.dto.RuntimeQueryFilterDto> filters) {
         ResponseEntity<List<java.util.Map<String, Object>>> response = ResponseEntity.ok(queryApplicationService.executeQueryData(id, filters));
         try {
+            // IMPORTANT : chaque rendu de widget déclenche cet endpoint (GET), donc le volume est élevé.
+            // On journalise dans la table d'AUDIT (purgée périodiquement), PAS dans analytics_event
+            // (qui doit rester réservée aux comportements utilisateur réels : vues de dashboard, clics, etc.)
             String targetName = queryApplicationService.getQueryById(id)
                     .map(com.dynamicdashboard.cockpit.query.application.dto.QueryResponseDto::getName)
                     .orElse("Requête inconnue");
-            analyticsApplicationService.recordEvent(CreateAnalyticsEventRequestDto.builder()
-                .action("QUERY_EXECUTION")
-                .target("QUERY")
-                .targetId(id)
-                .targetName(targetName)
-                .build());
+            auditApplicationService.logEvent(AuditApplicationService.EVENT_QUERY_EXECUTION, "QUERY", id, targetName, null);
         } catch (Exception ignored) {}
         return response;
     }

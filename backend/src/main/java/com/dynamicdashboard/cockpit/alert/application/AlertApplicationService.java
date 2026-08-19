@@ -25,6 +25,7 @@ import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.AlertSeverity;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.AlertStatus;
 import com.dynamicdashboard.cockpit.shared.utils.ParsingUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AlertApplicationService {
 
     private final com.dynamicdashboard.cockpit.shared.cache.RedisCacheService redisCacheService;
@@ -52,6 +54,7 @@ public class AlertApplicationService {
     private final QueryApplicationService queryApplicationService;
     private final AlertMapper alertMapper;
     private final AuditApplicationService auditApplicationService;
+    private final AlertNotificationDispatcher alertNotificationDispatcher;
 
 
 
@@ -100,7 +103,7 @@ public class AlertApplicationService {
     public boolean deleteRule(UUID id) {
         return alertRuleRepository.findById(id).map(rule -> {
             alertRuleChannelRepository.deleteAll(alertRuleChannelRepository.findByRuleId(id));
-            
+
             List<AlertEventEntity> events = alertEventRepository.findByRuleId(id);
             for (AlertEventEntity event : events) {
                 event.setRule(null);
@@ -201,25 +204,36 @@ public class AlertApplicationService {
     public List<AlertEventDto> evaluateAlerts() {
         List<AlertEventDto> triggered = new ArrayList<>();
         Instant now = Instant.now();
-
         List<AlertRuleEntity> enabledRules = alertRuleRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(AlertRuleEntity::isEnabled)
                 .collect(Collectors.toList());
 
+        log.info("[DIAGNOSTIC] {} règle(s) active(s) trouvée(s) sur {} règle(s) au total.",
+                enabledRules.size(), alertRuleRepository.count());
+
         for (AlertRuleEntity rule : enabledRules) {
             DataQueryEntity query = rule.getQuery();
-            if (query == null) continue;
+            if (query == null) {
+                log.info("[DIAGNOSTIC] Règle '{}' ignorée : aucune requête associée.", rule.getRuleName());
+                continue;
+            }
 
             List<Map<String, Object>> rows = queryApplicationService.executeQueryData(query.getId(), null);
             Double observed = computeMetric(rows, rule.getMetric());
-            if (observed == null) continue;
+            log.info("[DIAGNOSTIC] Règle '{}' -> requête '{}' a retourné {} ligne(s), métrique calculée = {}",
+                    rule.getRuleName(), query.getQueryName(), rows.size(), observed);
+            if (observed == null) {
+                log.info("[DIAGNOSTIC] Règle '{}' ignorée : aucune valeur numérique trouvée dans le résultat de la requête.", rule.getRuleName());
+                continue;
+            }
 
             boolean breached = switch (rule.getOperator()) {
                 case GT -> observed > rule.getThreshold();
                 case LT -> observed < rule.getThreshold();
                 case EQ -> observed == rule.getThreshold();
             };
-
+            log.info("[DIAGNOSTIC] Règle '{}' -> observé={}, opérateur={}, seuil={}, dépassé={}",
+                    rule.getRuleName(), observed, rule.getOperator(), rule.getThreshold(), breached);
             Optional<AlertEventEntity> currentOpt =
                     alertEventRepository.findFirstByRuleIdAndStatusNotOrderByTriggeredAtDesc(rule.getId(), AlertStatus.RESOLVED);
 
@@ -274,6 +288,14 @@ public class AlertApplicationService {
                 link.setId(linkId);
                 link.setEvent(saved);
                 alertEventChannelRepository.save(link);
+                // AVANT : on s'arrêtait ici -> rien n'était réellement envoyé.
+                // APRÈS : on tente réellement l'envoi via le dispatcher branché.
+                try {
+                    alertNotificationDispatcher.dispatch(saved, channel);
+                } catch (Exception e) {
+                    log.warn("Échec d'envoi de notification sur le canal {} pour l'alerte {}: {}",
+                            channel, saved.getId(), e.getMessage());
+                }
             }
 
             triggered.add(alertMapper.toEventDto(saved));

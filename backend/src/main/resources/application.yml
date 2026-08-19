@@ -6,6 +6,7 @@ spring:
     url: ${COCKPIT_DB_URL:jdbc:postgresql://localhost:5450/cockpit}
     username: ${COCKPIT_DB_USER:postgres}
     password: ${COCKPIT_DB_PASSWORD:postgres}
+
     hikari:
       minimum-idle: 2
       maximum-pool-size: 16
@@ -74,6 +75,12 @@ cockpit:
   security:
     allowed-origins: ${COCKPIT_ALLOWED_ORIGINS:http://localhost:5173}
     required-audience: ${COCKPIT_JWT_AUDIENCE:cockpit-api}
+    default-username: ${COCKPIT_DEFAULT_USERNAME:}
+  audit:
+    retention-days: ${COCKPIT_AUDIT_RETENTION_DAYS:90}
+    purge-cron: ${COCKPIT_AUDIT_PURGE_CRON:0 0 3 * * *}
+  alerts:
+    evaluation-interval-ms: ${COCKPIT_ALERT_EVAL_INTERVAL_MS:300000}
 
 logging:
   level:

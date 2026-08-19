@@ -22,6 +22,11 @@ public class AuditController {
     public ResponseEntity<List<AuditEventDto>> getRecentEvents() {
         return ResponseEntity.ok(auditApplicationService.getRecentEvents());
     }
+    @GetMapping("/top-query-executions")
+    public ResponseEntity<List<com.dynamicdashboard.cockpit.audit.application.dto.AuditTargetCountDto>> getTopQueryExecutions(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "5") int limit) {
+        return ResponseEntity.ok(auditApplicationService.getTopQueryExecutions(limit));
+    }
     @PostMapping
     public ResponseEntity<AuditEventDto> logAuditEvent(@RequestBody CreateAuditEventRequestDto dto) {
         AuditEventDto created = auditApplicationService.logAuditEvent(dto);
