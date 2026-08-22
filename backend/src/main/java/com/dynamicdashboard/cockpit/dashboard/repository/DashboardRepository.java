@@ -14,4 +14,6 @@ public interface DashboardRepository extends JpaRepository<DashboardEntity, UUID
     Optional<DashboardEntity> findById(UUID id);
     @EntityGraph(attributePaths = {"owner"})
     List<DashboardEntity> findByOwnerId(UUID ownerId);
+
+    long countByOwnerId(UUID ownerId);
 }

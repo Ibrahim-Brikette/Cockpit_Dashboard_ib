@@ -77,7 +77,7 @@ public class SecurityConfiguration {
                                 referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
                         .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31_536_000)))
                 .authorizeHttpRequests(auth -> {
-                    auth.requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                    auth.requestMatchers("/actuator/health", "/actuator/info", "/api/config").permitAll()
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     if (securityEnabled) {
                         if (cockpitAuthProperties.getMode() == CockpitAuthProperties.AuthMode.STANDALONE) {

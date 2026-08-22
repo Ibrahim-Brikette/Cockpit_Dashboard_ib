@@ -48,8 +48,19 @@ public class BruteForceService {
 
     // ---- Account lockout constants ----------------------------------------
     static final int  MAX_FAILED_ATTEMPTS         = 5;
-    static final int  PERMANENT_LOCKOUT_THRESHOLD = 4;   // lockout_count >= 4 → permanent
-    static final long RESET_TOKEN_TTL_SECONDS     = 300; // 5 min
+    static final int  PERMANENT_LOCKOUT_THRESHOLD = 4;    // lockout_count >= 4 → permanent
+
+    /**
+     * Lockout reset token TTL: 30 minutes.
+     *
+     * Intentionally longer than ForgotPasswordService.RESET_TOKEN_TTL_SECONDS (5 min).
+     * In the forgot-password flow the user explicitly requested the email and is watching
+     * their inbox — 5 min is plenty.
+     * In the lockout flow the user did NOT expect an email. They may be confused, may not
+     * check their inbox immediately, and Gmail delivery alone can take 1–3 minutes.
+     * A 5-minute window was expiring before many users ever clicked the link.
+     */
+    static final long LOCKOUT_RESET_TOKEN_TTL_SECONDS = 1800; // 30 min
 
     // ---- IP throttle constants --------------------------------------------
     static final int  IP_MAX_ATTEMPTS   = 10;
@@ -191,7 +202,7 @@ public class BruteForceService {
         PasswordResetTokenEntity resetToken = new PasswordResetTokenEntity();
         resetToken.setTokenHash(sha256(rawToken));
         resetToken.setUserId(user.getId());
-        resetToken.setExpiresAt(Instant.now().plusSeconds(RESET_TOKEN_TTL_SECONDS));
+        resetToken.setExpiresAt(Instant.now().plusSeconds(LOCKOUT_RESET_TOKEN_TTL_SECONDS));
         resetToken.setUsed(false);
         passwordResetTokenRepository.save(resetToken);
 

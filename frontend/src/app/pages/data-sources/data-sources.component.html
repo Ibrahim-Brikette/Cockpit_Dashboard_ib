@@ -10,11 +10,11 @@
       </div>
     </div>
     <div class="flex gap-2 shrink-0 self-start mt-1 sm:mt-0">
-      <app-button variant="secondary" size="md" (onClick)="goToQueries()">
+      <app-button *ngIf="permissionService.canCreateQuery()" variant="secondary" size="md" (onClick)="goToQueries()">
         <app-svg-icon name="Link2" class="h-4 w-4 mr-1.5"></app-svg-icon>
         Créer une requête
       </app-button>
-      <app-button variant="primary" size="md" (onClick)="openEditor()">
+      <app-button *ngIf="permissionService.canCreateDatasource()" variant="primary" size="md" (onClick)="openEditor()">
         <app-svg-icon name="Plus" class="h-4 w-4 mr-1.5"></app-svg-icon>
         Ajouter une source
       </app-button>
@@ -34,7 +34,7 @@
         </div>
         <h3 class="mb-1 text-sm font-semibold text-ink">Aucune base externe configurée</h3>
         <p class="mb-4 max-w-sm text-xs text-ink-faint">Ajoutez PostgreSQL, MySQL ou SQL Server pour les rendre disponibles dans les requêtes.</p>
-        <app-button variant="primary" (onClick)="openEditor()">
+        <app-button *ngIf="permissionService.canCreateDatasource()" variant="primary" (onClick)="openEditor()">
             <app-svg-icon name="Plus" class="h-3.5 w-3.5"></app-svg-icon>
             Ajouter une source
         </app-button>
@@ -85,10 +85,10 @@
           </div>
         </div>
         <div class="flex items-center gap-1 ml-3 shrink-0">
-          <button (click)="openEditor(db)" class="p-1.5 text-ink-faint hover:text-brand hover:bg-surface-muted rounded-md transition-colors" title="Modifier la source">
+          <button *ngIf="permissionService.canEditDatasource()" (click)="openEditor(db)" class="p-1.5 text-ink-faint hover:text-brand hover:bg-surface-muted rounded-md transition-colors" title="Modifier la source">
             <app-svg-icon name="Pencil" class="h-4 w-4"></app-svg-icon>
           </button>
-          <button (click)="promptDelete(db)" class="p-1.5 text-ink-faint hover:text-negative hover:bg-negative-soft rounded-md transition-colors" title="Supprimer la source">
+          <button *ngIf="permissionService.canEditDatasource()" (click)="promptDelete(db)" class="p-1.5 text-ink-faint hover:text-negative hover:bg-negative-soft rounded-md transition-colors" title="Supprimer la source">
             <app-svg-icon name="Trash2" class="h-4 w-4"></app-svg-icon>
           </button>
         </div>

@@ -17,6 +17,7 @@ public class DashboardResponseDto {
     private String description;
     private String color;
     private String status;
+    private UUID ownerId;
     private String owner;
     private String shareLevel;
     private int columns;

@@ -2,7 +2,7 @@ package com.dynamicdashboard.cockpit.shared.security.permission_evaluators;
 
 import com.dynamicdashboard.cockpit.query.domain.DataQueryEntity;
 import com.dynamicdashboard.cockpit.query.repository.DataQueryRepository;
-
+import com.dynamicdashboard.cockpit.shared.security.authorization.AppRole;
 import com.dynamicdashboard.cockpit.shared.security.authorization.QueryPermission;
 import com.dynamicdashboard.cockpit.sharing.repository.QueryShareGrantRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,13 +48,12 @@ public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
             return true;
         }
         boolean tenantAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a
-                        .getAuthority().equals("ROLE_TENANT_ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals(AppRole.TENANT_ADMIN.springRole()));
 
-        boolean systemAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a
-                        .getAuthority().equals("ROLE_SYSTEM_ADMIN"));
-        if(tenantAdmin || systemAdmin) {
+        boolean superAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(AppRole.SUPER_ADMIN.springRole()));
+
+        if(tenantAdmin || superAdmin) {
             return true;
         }
         boolean hasBasePermission = authentication.getAuthorities().stream()
@@ -68,7 +67,7 @@ public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
             return false;
         }
         UUID currentUserId = UUID.fromString(authentication.getName());
-        if (dataQuery.getOwner().getId().equals(currentUserId)){
+        if (dataQuery.getOwner() != null && dataQuery.getOwner().getId().equals(currentUserId)){
             return true;
         }
         Integer grantedRank = queryShareGrantRepository.findMaxAccessLevelRank(dataQuery.getId(), currentUserId);
@@ -79,12 +78,13 @@ public class DataQueryPermissionEvaluator implements DomainPermissionEvaluator {
         return grantedRank >= requiredAccessLevelRank(permission.toString());
     }
     private int requiredAccessLevelRank(String permissionCode) {
-        if (permissionCode.equals(QueryPermission.DELETE.getCode())) {
-            return 3; // OWNER-tier share required
+        if (permissionCode.equals(QueryPermission.DELETE.getCode()) ||
+            permissionCode.equals(QueryPermission.SHARE.getCode())) {
+            return 3; // OWNER-tier share required — only owner or OWNER-level grantee may share or delete
         }
         if (permissionCode.equals(QueryPermission.EDIT.getCode())) {
             return 2; // EDIT-tier share required
         }
-        return 1; // VIEW, EXECUTE - READ-tier is enough (judgment call - see below)
+        return 1; // VIEW, EXECUTE — READ-tier is enough
     }
 }

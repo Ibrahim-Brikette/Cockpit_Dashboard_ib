@@ -2,6 +2,8 @@ import { DashboardService } from '@pages/dashboard/services/dashboard.service';
 import { QueryService } from '@pages/query/services/query.service';
 import { AuditService, AuditLogEntry } from '@pages/settings/services/audit.service';
 import { UserService, UserProfile } from '@core/services/user.service';
+import { AppRole } from '@core/enums/app-role.enum';
+import { AuthService } from '@core/services/auth.service';
 import { AlertsService } from '@pages/alerts/services/alerts.service';
 import { AlertEventRowComponent } from '@pages/alerts/components/alert-event-row.component';
 import { ButtonComponent } from '@shared/components/ui/button.component';
@@ -140,21 +142,62 @@ import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component
             <app-svg-icon name="Settings" class="h-4 w-4 flex-shrink-0"></app-svg-icon>
             <span *ngIf="sidebarOpen || isMobile" class="truncate">Paramètres</span>
           </a>
+
+          <!-- Utilisateurs — admins only -->
+          <a
+            *ngIf="isAdmin"
+            routerLink="/utilisateurs"
+            (click)="closeSidebarOnMobile()"
+            routerLinkActive="bg-brand-soft text-brand-strong dark:bg-brand/20 dark:text-brand"
+            [routerLinkActiveOptions]="{ exact: false }"
+            class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium text-ink-soft dark:text-zinc-300 hover:bg-surface-sunken dark:hover:bg-zinc-800 hover:text-ink dark:hover:text-white transition-colors"
+            [ngClass]="{ 'justify-center px-0': !sidebarOpen && !isMobile }"
+            [title]="!sidebarOpen && !isMobile ? 'Utilisateurs' : ''"
+          >
+            <app-svg-icon name="Users" class="h-4 w-4 flex-shrink-0"></app-svg-icon>
+            <span *ngIf="sidebarOpen || isMobile" class="truncate">Utilisateurs</span>
+          </a>
         </nav>
 
-        <div class="border-t border-line dark:border-zinc-800 p-2 bg-white dark:bg-zinc-900 mt-auto">
+        <div class="border-t border-line dark:border-zinc-800 p-2 bg-white dark:bg-zinc-900 mt-auto space-y-1">
+          <!-- User info — hidden until profile is loaded to avoid stale-data flash -->
           <button
+            *ngIf="currentUser"
             class="flex w-full items-center gap-2 rounded-md p-1.5 text-left text-xs text-ink-soft dark:text-zinc-300 hover:bg-surface-sunken dark:hover:bg-zinc-800 cursor-pointer"
             [ngClass]="{ 'justify-center px-0': !sidebarOpen && !isMobile }"
           >
             <div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-brand-soft text-2xs font-semibold text-brand-strong">
-              {{ currentUser?.initials || 'AH' }}
+              {{ currentUser.initials }}
             </div>
             <div *ngIf="sidebarOpen || isMobile" class="min-w-0 flex-1 leading-tight overflow-hidden">
-              <div class="truncate font-medium text-ink dark:text-white">{{ currentUser?.displayName || 'Amine Haddad' }}</div>
-              <div class="truncate text-2xs text-ink-faint dark:text-zinc-400">Créateur</div>
+              <div class="truncate font-medium text-ink dark:text-white">{{ currentUser.displayName }}</div>
+              <div class="truncate text-2xs text-ink-faint dark:text-zinc-400">{{ roleLabel }}</div>
             </div>
             <app-svg-icon *ngIf="sidebarOpen || isMobile" name="ChevronDown" class="h-3.5 w-3.5 text-ink-faint dark:text-zinc-400 flex-shrink-0"></app-svg-icon>
+          </button>
+
+          <!-- Skeleton while profile loads -->
+          <div
+            *ngIf="!currentUser"
+            class="flex items-center gap-2 rounded-md p-1.5"
+            [ngClass]="{ 'justify-center': !sidebarOpen && !isMobile }"
+          >
+            <div class="h-7 w-7 flex-shrink-0 rounded-full bg-surface-sunken dark:bg-zinc-700 animate-pulse"></div>
+            <div *ngIf="sidebarOpen || isMobile" class="flex-1 space-y-1.5">
+              <div class="h-2 w-20 rounded bg-surface-sunken dark:bg-zinc-700 animate-pulse"></div>
+              <div class="h-2 w-12 rounded bg-surface-sunken dark:bg-zinc-700 animate-pulse"></div>
+            </div>
+          </div>
+
+          <!-- Logout — available in both modes -->
+          <button
+            (click)="logout()"
+            class="flex w-full items-center gap-2 rounded-md p-1.5 text-left text-xs text-ink-soft dark:text-zinc-300 hover:bg-surface-sunken dark:hover:bg-zinc-800 hover:text-negative dark:hover:text-red-400 transition-colors cursor-pointer"
+            [ngClass]="{ 'justify-center px-0': !sidebarOpen && !isMobile }"
+            title="Se déconnecter"
+          >
+            <app-svg-icon name="LogOut" class="h-4 w-4 flex-shrink-0"></app-svg-icon>
+            <span *ngIf="sidebarOpen || isMobile" class="truncate">Se déconnecter</span>
           </button>
         </div>
       </aside>
@@ -270,6 +313,37 @@ import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component
     <ng-template #bareLayout>
       <router-outlet></router-outlet>
     </ng-template>
+
+    <!-- Server restart overlay — shown when the backend is unreachable (status 0).
+         AuthService retries loadMode() every 5 s; this disappears automatically
+         when the server comes back. -->
+    <div *ngIf="serverDown"
+      class="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm">
+      <div class="flex flex-col items-center gap-5">
+
+        <!-- Spinning logo -->
+        <div class="relative">
+          <div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-brand shadow-xl animate-spin"
+               style="animation-duration: 2.5s; animation-timing-function: ease-in-out;">
+            <app-svg-icon name="LayoutGrid" class="h-10 w-10 text-white"></app-svg-icon>
+          </div>
+        </div>
+
+        <!-- Text -->
+        <div class="text-center">
+          <p class="text-base font-bold text-ink tracking-tight">CockpitNG</p>
+          <p class="text-sm text-ink-soft mt-0.5">Le serveur redémarre…</p>
+          <p class="text-xs text-ink-faint mt-1">Connexion automatique dans quelques secondes.</p>
+        </div>
+
+        <!-- Bouncing dots -->
+        <div class="flex items-center gap-1.5">
+          <div class="h-2 w-2 rounded-full bg-brand animate-bounce" style="animation-delay:0ms"></div>
+          <div class="h-2 w-2 rounded-full bg-brand animate-bounce" style="animation-delay:150ms"></div>
+          <div class="h-2 w-2 rounded-full bg-brand animate-bounce" style="animation-delay:300ms"></div>
+        </div>
+      </div>
+    </div>
   `
 })
 export class AppShellComponent implements OnInit {
@@ -278,6 +352,8 @@ export class AppShellComponent implements OnInit {
   sidebarOpen: boolean = true;
   isMobile: boolean = false;
   currentUser: UserProfile | null = null;
+  isStandalone = true;
+  serverDown = false;
 
   feedOpen = false;
   alerts: AlertEvent[] = [];
@@ -288,13 +364,14 @@ export class AppShellComponent implements OnInit {
     private queryService: QueryService,
     private auditService: AuditService,
     private userService: UserService,
+    private authService: AuthService,
     private alertsService: AlertsService
   ) {
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e: any) => {
         const url = e.urlAfterRedirects || e.url;
-        this.bare = /^\/(tableau|editeur)/.test(url);
+        this.bare = /^\/(tableau|editeur|auth)/.test(url);
         if (this.isMobile) {
           this.sidebarOpen = false;
         }
@@ -306,7 +383,25 @@ export class AppShellComponent implements OnInit {
     this.checkScreenSize();
     this.isDark = document.documentElement.classList.contains('dark') || localStorage.getItem('theme') === 'dark';
     this.applyTheme();
-    this.userService.currentUser$.subscribe((user) => {
+    // [IBR 2026-08-19] userService.currentUser$ replaced by authService.currentUser$ below.
+    // UserService called GET /api/identity/me (endpoint does not exist → always 404)
+    // and fell back to hardcoded "Amine Haddad". AuthService.loadUserProfile() is the
+    // correct implementation: reads roles/sub from the JWT, then fetches displayName/email
+    // via GET /api/identity/{sub}. See AuthService for details.
+    // this.userService.currentUser$.subscribe((user) => {
+    //   this.currentUser = user;
+    // });
+
+    this.authService.mode$.subscribe(mode => {
+      this.isStandalone = mode === 'STANDALONE';
+    });
+
+    this.authService.serverDown$.subscribe(down => {
+      this.serverDown = down;
+    });
+
+    // Source of truth for the current user — replaces the userService subscription above.
+    this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
     });
 
@@ -314,6 +409,16 @@ export class AppShellComponent implements OnInit {
     this.alertsService.alerts$.subscribe((alerts) => {
       this.alerts = alerts;
     });
+  }
+
+  get isAdmin(): boolean {
+    return this.authService.hasRole(AppRole.TENANT_ADMIN) || this.authService.hasRole(AppRole.SUPER_ADMIN);
+  }
+
+  get roleLabel(): string {
+    if (this.authService.hasRole(AppRole.SUPER_ADMIN))   return 'Super administrateur';
+    if (this.authService.hasRole(AppRole.TENANT_ADMIN))  return 'Administrateur';
+    return 'Utilisateur';
   }
 
   get activeAlertCount(): number {
@@ -350,6 +455,10 @@ export class AppShellComponent implements OnInit {
 
   acknowledgeAll(): void {
     this.liveAlerts.forEach((alert) => this.alertsService.acknowledgeAlert(alert.id));
+  }
+
+  logout(): void {
+    this.authService.logout();
   }
 
   goToAlertsCenter(): void {

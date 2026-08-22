@@ -7,6 +7,7 @@ public enum QueryPermission implements AppPermission {
     EDIT("query:edit"),
     DELETE("query:delete"),
     EXECUTE("query:execute"),
+    SHARE("query:share"),
     MANAGE_ALL("query:manage_all");
 
     private final String code;

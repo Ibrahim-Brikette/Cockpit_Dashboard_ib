@@ -38,6 +38,7 @@ public class DashboardMapper {
                 .description(entity.getDashboardDescription())
                 .color(entity.getColorHex())
                 .status(entity.getStatus() != null ? entity.getStatus().name().toLowerCase() : "draft")
+                .ownerId(entity.getOwner() != null ? entity.getOwner().getId() : null)
                 .owner(entity.getOwner() != null ? entity.getOwner().getDisplayName() : "Vous")
                 .shareLevel(entity.getShareLevel() != null ? entity.getShareLevel().name().toLowerCase() : "private")
                 .columns(entity.getColumnsCount())

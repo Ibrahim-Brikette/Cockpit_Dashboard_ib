@@ -30,6 +30,7 @@ export interface QuerySortDto {
 }
 export interface QueryResponseDto {
   id: string;
+  ownerId?: string;
   name: string;
   description?: string;
   visibility?: string;

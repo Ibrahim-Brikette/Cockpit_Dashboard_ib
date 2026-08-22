@@ -4,6 +4,7 @@ export class QueryMapper {
   static toDomain(dto: QueryResponseDto): DataQuery {
     return {
       id: String(dto.id),
+      ownerId: dto.ownerId,
       name: dto.name,
       description: dto.description || '',
       visibility: dto.visibility ? (dto.visibility.toLowerCase() as any) : 'personal',

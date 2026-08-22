@@ -31,6 +31,9 @@ public class MailService {
     @Value("${cockpit.password-reset.base-url}")
     private String resetBaseUrl;
 
+    @Value("${cockpit.password-reset.verify-url}")
+    private String verifyBaseUrl;
+
     public void sendLockoutEmail(String toEmail, String displayName,
                                   String rawToken, String lockDuration, boolean isPermanent) {
         String subject = isPermanent
@@ -58,7 +61,7 @@ public class MailService {
     public void sendVerificationEmail(String toEmail, String displayName, String rawToken) {
         // Uses a separate frontend route from password reset so the UI can show
         // the correct form ("Set up your account" instead of "Reset your password")
-        String verifyLink = resetBaseUrl.replace("reset-password", "verify-email") + "?token=" + rawToken;
+        String verifyLink = verifyBaseUrl + "?token=" + rawToken;
         send(toEmail, "Set up your Cockpit account", buildVerificationBody(displayName, verifyLink));
     }
 

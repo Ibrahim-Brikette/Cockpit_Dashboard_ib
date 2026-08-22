@@ -87,6 +87,7 @@ public class QueryMapper {
         int usedByWidgetsCount = widgetRepository.countByQueryId(entity.getId());
         return QueryResponseDto.builder()
                 .id(entity.getId())
+                .ownerId(entity.getOwner() != null ? entity.getOwner().getId() : null)
                 .name(entity.getQueryName())
                 .description(entity.getQueryDescription())
                 .visibility(entity.getVisibility() != null ? entity.getVisibility().name().toLowerCase() : "shared")

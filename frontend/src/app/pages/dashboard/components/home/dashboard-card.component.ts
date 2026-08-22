@@ -1,7 +1,5 @@
 import { DashboardService } from '@pages/dashboard/services/dashboard.service';
-import { QueryService } from '@pages/query/services/query.service';
-import { AuditService, AuditLogEntry } from '@pages/settings/services/audit.service';
-import { UserService, UserProfile } from '@core/services/user.service';
+import { PermissionService } from '@core/services/permission.service';
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -11,16 +9,12 @@ import { BadgeComponent } from '@shared/components/ui/badge.component';
 import { ShareModalComponent } from '@pages/dashboard/components/home/share-modal.component';
 import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component';
 import { ConfirmModalComponent } from '@shared/components/ui/confirm-modal.component';
-const SHARE_LABELS: Record<string, string> = {
-  private: 'Privé',
-  users: 'Utilisateurs',
-  group: 'Groupe',
-  organization: 'Organisation'
-};
+import { DashboardAccessPopoverComponent } from '@pages/dashboard/components/home/dashboard-access-popover.component';
+
 @Component({
   selector: 'app-dashboard-card',
   standalone: true,
-  imports: [CommonModule, BadgeComponent, ShareModalComponent, SvgIconComponent, ConfirmModalComponent],
+  imports: [CommonModule, BadgeComponent, ShareModalComponent, SvgIconComponent, ConfirmModalComponent, DashboardAccessPopoverComponent],
   template: `
     <div
       (click)="onOpen.emit()"
@@ -62,6 +56,7 @@ const SHARE_LABELS: Record<string, string> = {
                 class="absolute right-0 z-30 mt-1 w-44 rounded-md border border-line bg-white py-1 shadow-pop"
               >
                 <button
+                  *ngIf="permissionService.canManageDashboard(dashboard)"
                   (click)="navigate('/editeur/' + dashboard.id)"
                   class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-ink-soft hover:bg-surface-muted"
                 >
@@ -69,6 +64,7 @@ const SHARE_LABELS: Record<string, string> = {
                   Modifier
                 </button>
                 <button
+                  *ngIf="permissionService.canManageDashboard(dashboard) && permissionService.canCreateDashboard()"
                   (click)="duplicate()"
                   class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-ink-soft hover:bg-surface-muted"
                 >
@@ -76,6 +72,7 @@ const SHARE_LABELS: Record<string, string> = {
                   Dupliquer
                 </button>
                 <button
+                  *ngIf="permissionService.canShareDashboard(dashboard)"
                   (click)="shareOpen = true; menuOpen = false"
                   class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-ink-soft hover:bg-surface-muted"
                 >
@@ -83,14 +80,16 @@ const SHARE_LABELS: Record<string, string> = {
                   Partager
                 </button>
                 <button
+                  *ngIf="permissionService.canManageDashboard(dashboard)"
                   (click)="archive()"
                   class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-ink-soft hover:bg-surface-muted"
                 >
                   <app-svg-icon name="Archive" class="h-3.5 w-3.5"></app-svg-icon>
                   {{ dashboard.archived ? 'Désarchiver' : 'Archiver' }}
                 </button>
-                <div class="my-1 border-t border-line"></div>
+                <div *ngIf="permissionService.canDeleteDashboard(dashboard)" class="my-1 border-t border-line"></div>
                 <button
+                  *ngIf="permissionService.canDeleteDashboard(dashboard)"
                   (click)="deleteDash()"
                   class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-negative hover:bg-surface-muted"
                 >
@@ -109,10 +108,13 @@ const SHARE_LABELS: Record<string, string> = {
             <app-svg-icon name="Layers" class="h-3.5 w-3.5"></app-svg-icon>
             {{ dashboard.widgets.length }} widgets
           </span>
-          <span class="inline-flex items-center gap-1">
-            <app-svg-icon [name]="getShareIcon(dashboard.shareLevel)" class="h-3.5 w-3.5"></app-svg-icon>
-            {{ getShareLabel(dashboard.shareLevel) }}
-          </span>
+          <div class="relative" (click)="$event.stopPropagation()">
+            <app-dashboard-access-popover
+              [dashboard]="dashboard"
+              [canShare]="permissionService.canShareDashboard(dashboard)"
+              (onManage)="shareOpen = true"
+            ></app-dashboard-access-popover>
+          </div>
           <span class="ml-auto">{{ getRelDate(dashboard.updatedAt, dashboard.createdAt) }}</span>
         </div>
       </div>
@@ -138,16 +140,10 @@ export class DashboardCardComponent {
   shareOpen: boolean = false;
   deleteConfirmOpen: boolean = false;
   constructor(
-    private dashboardService: DashboardService, private queryService: QueryService, private auditService: AuditService, private userService: UserService,
-    private router: Router
+    private dashboardService: DashboardService,
+    private router: Router,
+    public permissionService: PermissionService
   ) {}
-  getShareLabel(level: string): string {
-    return SHARE_LABELS[level] || level;
-  }
-  getShareIcon(level: string): string {
-    if (level === 'private') return 'User';
-    return 'Users';
-  }
   getRelDate(iso: string, createdAt?: string): string {
     return relativeDate(iso, createdAt);
   }

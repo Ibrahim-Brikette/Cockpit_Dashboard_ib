@@ -1,6 +1,68 @@
+# ============================================================
+# LOCAL DEVELOPER OVERRIDES — DO NOT COMMIT
+# This file is gitignored. It overrides application.yml with
+# real credentials for local development.
+# Loaded automatically by Spring Boot via spring.config.import.
+# ============================================================
+
 spring:
+  mail:
+    username: springjuniordeveloper@gmail.com
+    password: qanmqsebkrwchimv
   datasource:
-    url: jdbc:postgresql://localhost:5450/cockpit
+    url: jdbc:postgresql://localhost:5432/cockpit
+    username: postgres
+    password: qwerty1234
 
 vault:
   uri: http://localhost:8200
+  token: root
+#app:
+#  security:
+#    jwt:
+#      issuer: http://localhost:8081/realms/cockpit
+#      audience: cockpit-api
+cockpit:
+  auth:
+#    mode: INTEGRATED
+#    jwk-uri: http://localhost:8081/realms/cockpit/protocol/openid-connect/certs
+    rsa:
+      private-key: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDKIA1JQhHpwMhW
+        UrHJZK2S4lnTfZ+ScPEpSMhl4kXjSqgxjKxTPKen8O6Wbt45pw3VRu25BiDxmbh+
+        IsACmnRHzWqqYSw66aNwnLV+Bh57s7fqeGouX1/gInCOUwHNitA4EarUgwwo0GzG
+        rGHm7RLQorkjov3hfhMes2RIJadR/o4U8IXMXArh2wOcPhtrSBxF0LwMomwrChF9
+        n4nJpIBtoX7ZC4fQ6zB4qhAcL2Jf9yFpzN3AlF2+x0qPoYSzuYIzoDEiFly7nrvj
+        wEgm37L4BkW4s9Qahx7jq1KoNLonQ5x+RNwSSNlQf/7kmAz8bDhceVK+/A0+q0AA
+        ejXK8CAjAgMBAAECggEACU5bR9f954t6IQqJQWK14ME0YSaaItQf/MZrS52UzPef
+        MaDVC+pxm0VEuhjJEuupGS+9B27LzecSj0qRGQDJgWDPNdPOUh9EG8EE7i3gvp5/
+        EkTD04/0MLQ4bT61iSQiA0lBwN6qJnSDymXqoAcJF1TWpCUyytLS+7ytgLdGS+Hd
+        sxKes8khtOyBsAb5VkEKBCcRGM74MqiP4RA1epwbN7YXXugxEVXnzl5SttO+9Bwm
+        8Kp+O4Hbc/BMjU8boSuWbwpKlV2wAI8vVZ1a7ko5JhgM/1FwDV+qkQRjzJEwtf3+
+        JMNhrT7ZDG9k2Jj64G3ZGBXPm4xRkWR8QXRqxHdo8QKBgQDx9BQIDeOdOmOoon9t
+        MCPEr7HjdeHjEz0Q4qpfryD+JYpzjClszAmcIHo96Svl6o+NUDgME/71Gb9fPrGq
+        2HBvtDEBGq4HefefO94xCIRiWVrjVj4Wu8c1+cN4o1LdfQPZqx6FJf5QaNpxQweV
+        5AgpE4CD0IPt+eOdLadVaEfpywKBgQDV3At+0ANBNai3DQhTaiELWUhC59IdNNqV
+        DvH2XaQv++1hUAIx1KAwU8xLmCgA5B0MucaYdQn3kY4ywHbSWZh7u4Z3TsUePc1V
+        XR0K6iHfxV/EG37ntHaT/1t0d73DjbMd3PsRLmOOErm4uy8lYBrmLThLr4GdUP4Q
+        6yrA0T24CQKBgQC/vn+VdnRYqOpLvSOhA1KFT/t42HYAP8HYPNlqZN6Pqm6TbZNy
+        riw7d52IrN3mIkJLajRQlhQqZ5I6x/ODAm3wiGuBhYQ/VpA/t/E5CJfpXQjjOviP
+        iZaxFtOrKjvEXYuMl8jjGh312XKr6cP8LK+u5c6mJ7w1/yA78u82hyLeiwKBgQCm
+        NeH9Sj/tU33v3sIkymwqPNbLoQ6NQoHLrZTibD7qSDtjEWLTRbTGOqqh6fzVTHVD
+        abNu1C/N6KOC0FDJBXdcWw+T9HWBHnlSqg6jZ/qxxt26NcB45qnuNl3m9BVZQez+
+        /btnzAz145nSeDCZNMtTL7v8Hsh28vazQYK13ym/uQKBgQCHgsYhks0DQvLIn8++
+        NW1n2aNZWCwxJWXNVWJ9TGIIazCU0jNI3J8f7ej4Oe+MhGFUPjIZbzs6ZkizUB3D
+        KBEKZ8vs5/GNUiguSxYX6ybW8CvZ5L18uBJtyr53iS0EEh8NttuSQ3401UdeD5Dl
+        1gxqMJF8r85M1yU0Wn8vQRsMYg==
+        -----END PRIVATE KEY-----
+      public-key: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyiANSUIR6cDIVlKxyWSt
+        kuJZ032fknDxKUjIZeJF40qoMYysUzynp/Dulm7eOacN1UbtuQYg8Zm4fiLAApp0
+        R81qqmEsOumjcJy1fgYee7O36nhqLl9f4CJwjlMBzYrQOBGq1IMMKNBsxqxh5u0S
+        0KK5I6L94X4THrNkSCWnUf6OFPCFzFwK4dsDnD4ba0gcRdC8DKJsKwoRfZ+JyaSA
+        baF+2QuH0OsweKoQHC9iX/chaczdwJRdvsdKj6GEs7mCM6AxIhZcu56748BIJt+y
+        +AZFuLPUGoce46tSqDS6J0OcfkTcEkjZUH/+5JgM/Gw4XHlSvvwNPqtAAHo1yvAg
+        IwIDAQAB
+        -----END PUBLIC KEY-----
