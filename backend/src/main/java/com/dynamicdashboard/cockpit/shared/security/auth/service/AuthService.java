@@ -3,6 +3,7 @@ package com.dynamicdashboard.cockpit.shared.security.auth.service;
 import com.dynamicdashboard.cockpit.identity.domain.UserAccountEntity;
 import com.dynamicdashboard.cockpit.identity.repository.RoleRepository;
 import com.dynamicdashboard.cockpit.identity.repository.UserAccountRepository;
+import com.dynamicdashboard.cockpit.shared.security.CockpitAuthProperties;
 import com.dynamicdashboard.cockpit.shared.security.CustomUserDetails;
 import com.dynamicdashboard.cockpit.shared.security.auth.dto.LoginRequest;
 import com.dynamicdashboard.cockpit.shared.security.auth.dto.LoginResponse;
@@ -86,6 +87,7 @@ public class AuthService {
     private final JwtEncoder             jwtEncoder;
     private final JwtProperties          jwtProperties;
     private final JtiRevocationService   jtiRevocationService;
+    private final CockpitAuthProperties  cockpitAuthProperties;
 
     // =========================================================================
     // POST /api/auth/login
@@ -241,7 +243,7 @@ public class AuthService {
         jtiRevocationService.revoke(jti, jwt.getExpiresAt());
 
         // 2. Delete the session row — user explicitly logged out, no audit row needed
-        String sessionIdClaim = jwt.getClaimAsString("sessionId");
+        String sessionIdClaim = jwt.getClaimAsString(cockpitAuthProperties.getClaims().getSessionId());
         if (sessionIdClaim != null) {
             try {
                 deleteSession(UUID.fromString(sessionIdClaim)); // delete, not revoke
@@ -318,9 +320,9 @@ public class AuthService {
             .issuedAt(now)
             .expiresAt(exp)
             .id(UUID.randomUUID().toString())          // jti — unique ID for this token
-            .claim("roles",     roles)                  // spec 5.2 required claim
-            .claim("tenantId",  tenantId.toString())    // spec 5.2 required claim
-            .claim("sessionId", sessionId.toString())   // spec 5.2 required claim
+            .claim(cockpitAuthProperties.getClaims().getRoles(),     roles)             // spec 5.2 required claim
+            .claim(cockpitAuthProperties.getClaims().getTenantId(), tenantId.toString()) // spec 5.2 required claim
+            .claim(cockpitAuthProperties.getClaims().getSessionId(), sessionId.toString()) // spec 5.2 required claim
             // No "permissions" claim — JwtAuthoritiesConverter resolves these from DB
             .build();
 

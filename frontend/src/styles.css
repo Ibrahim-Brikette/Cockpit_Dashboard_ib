@@ -14,6 +14,14 @@ body {
   margin: 0;
   padding: 0;
 }
+/* Smooth theme transitions on every element — Tailwind's explicit transition-* classes
+   have higher specificity (0-1-0) so they override this (0-0-0) when present. */
+*, *::before, *::after {
+  transition-property: background-color, color, border-color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
 body {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.8125rem;
@@ -21,7 +29,6 @@ body {
   background: #f6f7f9;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  transition: background-color 0.25s ease, color 0.25s ease;
 }
 html.dark body {
   background-color: #000000;

@@ -1,20 +1,27 @@
 spring:
+  config:
+    import: optional:classpath:application-local.yml
+
   application:
     name: cockpit-backend
 
   mail:
     host: ${COCKPIT_MAIL_HOST:smtp.gmail.com}
     port: ${COCKPIT_MAIL_PORT:587}
-    username: ${COCKPIT_MAIL_USERNAME:springjuniordeveloper@gmail.com}
-    password: ${COCKPIT_MAIL_PASSWORD:qanmqsebkrwchimv}
+    username: ${COCKPIT_MAIL_USERNAME:}
+    password: ${COCKPIT_MAIL_PASSWORD:}
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 3000
+      mail.smtp.timeout: 3000
+      mail.smtp.writetimeout: 3000
+
 
   datasource:
     url: ${COCKPIT_DB_URL:jdbc:postgresql://localhost:5432/cockpit}
     username: ${COCKPIT_DB_USER:postgres}
-    password: ${COCKPIT_DB_PASSWORD:qwerty1234}
+    password: ${COCKPIT_DB_PASSWORD:}
     hikari:
       minimum-idle: 2
       maximum-pool-size: 16
@@ -56,7 +63,7 @@ spring:
 
 vault:
   uri: ${VAULT_URI:http://cockpit_vault:8200}
-  token: ${VAULT_TOKEN:root}
+  token: ${VAULT_TOKEN:}
 
 server:
   port: ${COCKPIT_SERVER_PORT:8080}
@@ -72,6 +79,9 @@ server:
     include-binding-errors: never
 
 management:
+  health:
+    redis:
+      enabled: false
   endpoint:
     health:
       show-details: never
@@ -87,6 +97,15 @@ cockpit:
     mode: ${COCKPIT_AUTH_MODE:STANDALONE}
     # INTEGRATED only — mother app's public key endpoint:
     # jwk-uri: ${COCKPIT_JWK_URI:https://auth.example.com/.well-known/jwks.json}
+
+    # STANDALONE only — persistent RSA-2048 key pair.
+    # Dev: set in application-local.yml (gitignored).
+    # Prod: inject via COCKPIT_RSA_PRIVATE_KEY and COCKPIT_RSA_PUBLIC_KEY environment variables.
+    # If both are blank, an in-memory key is generated on startup (tokens die on restart — dev only).
+    rsa:
+      private-key: ${COCKPIT_RSA_PRIVATE_KEY:}
+      public-key: ${COCKPIT_RSA_PUBLIC_KEY:}
+
     claims:
       # Configure these only in INTEGRATED mode if the mother app uses different claim names.
       user-id: ${COCKPIT_CLAIM_USER_ID:sub}
@@ -94,12 +113,11 @@ cockpit:
       roles: ${COCKPIT_CLAIM_ROLES:roles}
       session-id: ${COCKPIT_CLAIM_SESSION_ID:sessionId}
   security:
-    allowed-origins: ${COCKPIT_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${COCKPIT_ALLOWED_ORIGINS:http://localhost:4200}
     required-audience: ${COCKPIT_JWT_AUDIENCE:cockpit-api}
   password-reset:
-    # Frontend URL that shows the "enter new password" form.
-    # The raw token is appended as ?token=<value>.
-    base-url: ${COCKPIT_RESET_BASE_URL:http://localhost:5173/reset-password}
+    base-url: ${COCKPIT_RESET_BASE_URL:http://localhost:4200/auth/reinitialisation}
+    verify-url: ${COCKPIT_VERIFY_BASE_URL:http://localhost:4200/auth/verification-email}
 
 app:
   security:

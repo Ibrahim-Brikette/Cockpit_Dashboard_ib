@@ -8,4 +8,5 @@ public interface DataQueryRepository extends JpaRepository<DataQueryEntity, UUID
     Optional<DataQueryEntity> findByOwnerId(UUID ownerId);
     List<DataQueryEntity> findAllByTenantId(UUID tenantId);
     List<DataQueryEntity> findByOwnerIdAndTenantId(UUID ownerId, UUID tenantId);
+    long countByOwnerId(UUID ownerId);
 }

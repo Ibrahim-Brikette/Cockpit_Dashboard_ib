@@ -1,5 +1,6 @@
 package com.dynamicdashboard.cockpit.shared.security.tenant;
 
+import com.dynamicdashboard.cockpit.shared.security.authorization.AppRole;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.annotation.Aspect;
@@ -20,6 +21,9 @@ import java.util.UUID;
  * - @EnableTransactionManagement(order = LOWEST_PRECEDENCE - 100) in HibernateFilterConfiguration
  *   → transaction interceptor is outermost (opens Session first)
  * - This aspect at @Order(LOWEST_PRECEDENCE - 50) is therefore inner → Session already exists here
+ *
+ * SUPER_ADMIN bypasses the tenant filter — system-wide access, no tenant scope.
+ * Role string comes from AppRole.SUPER_ADMIN.springRole() — update AppRole if renamed.
  */
 @Aspect
 @Component
@@ -28,7 +32,8 @@ import java.util.UUID;
 public class TenantFilterAspect {
 
     private static final String TENANT_FILTER_NAME = "tenantFilter";
-    private static final String SYSTEM_AMDIN_ROLE = "ROLE_SYSTEM_ADMIN";
+    // Derived from AppRole enum — not a hardcoded string literal.
+    private static final String SUPER_ADMIN_ROLE = AppRole.SUPER_ADMIN.springRole();
 
     private final EntityManager entityManager;
 
@@ -37,7 +42,7 @@ public class TenantFilterAspect {
     public void enableTenantFilter() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if(authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(a -> SYSTEM_AMDIN_ROLE.equals(a.getAuthority()))
+                .anyMatch(a -> SUPER_ADMIN_ROLE.equals(a.getAuthority()))
         ){
             return;
         }

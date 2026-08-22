@@ -2,6 +2,7 @@ package com.dynamicdashboard.cockpit.shared.security.permission_evaluators;
 
 import com.dynamicdashboard.cockpit.catalog.domain.DataSourceEntity;
 import com.dynamicdashboard.cockpit.catalog.repository.DataSourceRepository;
+import com.dynamicdashboard.cockpit.shared.security.authorization.AppRole;
 import com.dynamicdashboard.cockpit.shared.security.authorization.DatasourcePermission;
 import com.dynamicdashboard.cockpit.shared.security.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -35,14 +36,14 @@ public class DataSourcePermissionEvaluator implements DomainPermissionEvaluator 
         }
         boolean tenantAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
                 .stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_TENANT_ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals(AppRole.TENANT_ADMIN.springRole()));
         if(tenantAdmin) {
             return true;
         }
-        boolean systemAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
-                    .stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_SYSTEM_ADMIN"));
-        if(systemAdmin) {
+        boolean superAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+                .stream()
+                .anyMatch(a -> a.getAuthority().equals(AppRole.SUPER_ADMIN.springRole()));
+        if(superAdmin) {
             return true;
         }
 

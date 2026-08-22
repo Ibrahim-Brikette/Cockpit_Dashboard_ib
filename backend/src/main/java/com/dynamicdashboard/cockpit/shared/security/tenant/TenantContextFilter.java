@@ -2,6 +2,7 @@ package com.dynamicdashboard.cockpit.shared.security.tenant;
 
 import com.dynamicdashboard.cockpit.identity.domain.UserAccountEntity;
 import com.dynamicdashboard.cockpit.identity.repository.UserAccountRepository;
+import com.dynamicdashboard.cockpit.shared.security.CockpitAuthProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,7 +26,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TenantContextFilter extends OncePerRequestFilter {
 
-    private final UserAccountRepository userAccountRepository;
+    private final UserAccountRepository  userAccountRepository;
+    private final CockpitAuthProperties  cockpitAuthProperties;
    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -37,7 +39,7 @@ public class TenantContextFilter extends OncePerRequestFilter {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
             if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
-                String tenantIdClaim = jwt.getClaimAsString("tenantId");
+                String tenantIdClaim = jwt.getClaimAsString(cockpitAuthProperties.getClaims().getTenantId());
 
                 if (tenantIdClaim == null || tenantIdClaim.isBlank()) {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT does not contain tenantId");

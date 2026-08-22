@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(xargs sed -i 's/com\\\\.dynamicdashboard\\\\.cockpit\\\\.shared\\\\.security\\\\.auth\\\\.service\\\\.PasswordResetRequest/com.dynamicdashboard.cockpit.shared.security.auth.dto.PasswordResetRequest/g;:*)"
-    ]
-  }
-}

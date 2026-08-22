@@ -1,0 +1,1027 @@
+<div class="mx-auto max-w-[1400px] p-5 space-y-6">
+
+  <!-- Page header -->
+  <div class="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+        <app-svg-icon name="Users" class="h-5 w-5"></app-svg-icon>
+      </div>
+      <div>
+        <h1 class="text-lg font-semibold text-ink dark:text-white">Utilisateurs</h1>
+        <p class="text-xs text-ink-faint dark:text-zinc-400 mt-0.5">
+          Gestion des comptes utilisateurs du tenant.
+        </p>
+      </div>
+    </div>
+    <div *ngIf="isAdmin" class="flex items-center gap-2 shrink-0">
+      <button
+        (click)="openGroupPanel()"
+        class="flex items-center gap-2 rounded-md border border-line dark:border-zinc-700
+               bg-white dark:bg-zinc-800 px-3 h-8 text-xs font-medium text-ink-soft dark:text-zinc-300
+               hover:bg-surface-muted dark:hover:bg-zinc-700 transition-colors"
+      >
+        <app-svg-icon name="FolderPlus" class="h-3.5 w-3.5"></app-svg-icon>
+        Créer un groupe
+      </button>
+      <button
+        (click)="openPanel()"
+        class="flex items-center gap-2 rounded-md bg-brand px-3 h-8 text-xs font-medium text-white
+               hover:bg-brand-strong transition-colors"
+      >
+        <app-svg-icon name="UserPlus" class="h-3.5 w-3.5"></app-svg-icon>
+        Créer un utilisateur
+      </button>
+    </div>
+  </div>
+
+  <!-- Page tab switcher -->
+  <div class="flex border-b border-line dark:border-zinc-800">
+    <button (click)="switchPageTab('utilisateurs')"
+            class="px-5 py-2.5 text-xs font-medium border-b-2 transition-colors"
+            [class.border-brand]="pageTab === 'utilisateurs'"
+            [class.text-brand]="pageTab === 'utilisateurs'"
+            [class.border-transparent]="pageTab !== 'utilisateurs'"
+            [class.text-ink-faint]="pageTab !== 'utilisateurs'">
+      Utilisateurs
+    </button>
+    <button (click)="switchPageTab('groupes')"
+            class="px-5 py-2.5 text-xs font-medium border-b-2 transition-colors"
+            [class.border-brand]="pageTab === 'groupes'"
+            [class.text-brand]="pageTab === 'groupes'"
+            [class.border-transparent]="pageTab !== 'groupes'"
+            [class.text-ink-faint]="pageTab !== 'groupes'">
+      Groupes
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="pageTab === 'utilisateurs' && loadingUsers" class="flex items-center justify-center py-16">
+    <svg class="h-5 w-5 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+    </svg>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="pageTab === 'utilisateurs' && !loadingUsers && errorUsers"
+       class="rounded-lg border border-negative/20 bg-negative/5 px-4 py-3 text-xs text-negative">
+    {{ errorUsers }}
+  </div>
+
+  <!-- Table -->
+  <div *ngIf="pageTab === 'utilisateurs' && !loadingUsers && !errorUsers"
+       class="rounded-lg border border-line dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-card overflow-hidden">
+
+    <!-- Empty state -->
+    <div *ngIf="users.length === 0" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+      <div class="flex h-10 w-10 items-center justify-center rounded-full bg-brand/10">
+        <app-svg-icon name="Users" class="h-5 w-5 text-brand"></app-svg-icon>
+      </div>
+      <p class="text-xs font-semibold text-ink dark:text-white">Aucun utilisateur</p>
+      <p class="text-2xs text-ink-faint dark:text-zinc-400">
+        Créez le premier compte utilisateur pour ce tenant.
+      </p>
+    </div>
+
+    <!-- Rows -->
+    <table *ngIf="users.length > 0" class="w-full text-xs">
+      <thead>
+        <tr class="border-b border-line dark:border-zinc-800 bg-surface-muted dark:bg-zinc-800/50">
+          <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide">Utilisateur</th>
+          <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide hidden sm:table-cell">Nom d'utilisateur</th>
+          <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide hidden md:table-cell">Email</th>
+          <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide">Statut</th>
+          <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide hidden lg:table-cell">Dernière connexion</th>
+          <th *ngIf="isAdmin && isStandalone" class="px-4 py-2.5 w-10"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-line dark:divide-zinc-800">
+        <tr *ngFor="let user of users"
+            (click)="selectUser(user)"
+            class="cursor-pointer hover:bg-surface-muted dark:hover:bg-zinc-800/40 transition-colors"
+            [class.bg-brand-soft]="selectedUser?.id === user.id"
+            [class.dark:bg-brand]="selectedUser?.id === user.id"
+            [class.dark:bg-opacity-10]="selectedUser?.id === user.id">
+          <!-- Avatar + display name -->
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-2.5">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full
+                          bg-brand-soft dark:bg-brand/20 text-2xs font-semibold text-brand-strong dark:text-brand">
+                {{ initials(user) }}
+              </div>
+              <span class="font-medium text-ink dark:text-white truncate max-w-[140px]">
+                {{ user.displayName || user.username }}
+              </span>
+            </div>
+          </td>
+          <!-- Username -->
+          <td class="px-4 py-3 text-ink-soft dark:text-zinc-300 hidden sm:table-cell">
+            {{ user.username }}
+          </td>
+          <!-- Email -->
+          <td class="px-4 py-3 text-ink-soft dark:text-zinc-300 hidden md:table-cell">
+            {{ user.email }}
+          </td>
+          <!-- Status badge -->
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold"
+                  [class]="statusClass(user.accountStatus)">
+              {{ statusLabel(user.accountStatus) }}
+            </span>
+          </td>
+          <!-- Last login -->
+          <td class="px-4 py-3 text-ink-faint dark:text-zinc-500 hidden lg:table-cell">
+            {{ formatDate(user.lastLoginAt) }}
+          </td>
+          <!-- Delete action -->
+          <td *ngIf="isAdmin && isStandalone" class="px-2 py-3 text-right">
+            <button
+              (click)="confirmDelete(user, $event)"
+              class="rounded p-1 text-ink-faint dark:text-zinc-500 hover:text-negative hover:bg-negative/5 transition-colors"
+              title="Supprimer cet utilisateur">
+              <app-svg-icon name="Trash2" class="h-3.5 w-3.5"></app-svg-icon>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- ── Groups section ────────────────────────────────────────────────── -->
+  <ng-container *ngIf="pageTab === 'groupes'">
+
+    <!-- Loading -->
+    <div *ngIf="loadingGroups" class="flex items-center justify-center py-16">
+      <svg class="h-5 w-5 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="!loadingGroups && errorGroups"
+         class="rounded-lg border border-negative/20 bg-negative/5 px-4 py-3 text-xs text-negative">
+      {{ errorGroups }}
+    </div>
+
+    <!-- Groups table -->
+    <div *ngIf="!loadingGroups && !errorGroups"
+         class="rounded-lg border border-line dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-card overflow-hidden">
+
+      <!-- Empty state -->
+      <div *ngIf="groups.length === 0" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
+          <app-svg-icon name="Users" class="h-5 w-5 text-purple-600 dark:text-purple-400"></app-svg-icon>
+        </div>
+        <p class="text-xs font-semibold text-ink dark:text-white">Aucun groupe</p>
+        <p class="text-2xs text-ink-faint dark:text-zinc-400">
+          Créez le premier groupe pour organiser vos utilisateurs.
+        </p>
+      </div>
+
+      <!-- Rows -->
+      <table *ngIf="groups.length > 0" class="w-full text-xs">
+        <thead>
+          <tr class="border-b border-line dark:border-zinc-800 bg-surface-muted dark:bg-zinc-800/50">
+            <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide">Groupe</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide hidden sm:table-cell">Code</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-semibold text-ink-faint dark:text-zinc-400 uppercase tracking-wide hidden md:table-cell">Description</th>
+            <th *ngIf="isAdmin" class="px-4 py-2.5 w-10"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-line dark:divide-zinc-800">
+          <tr *ngFor="let group of groups"
+              (click)="selectGroup(group)"
+              class="cursor-pointer hover:bg-surface-muted dark:hover:bg-zinc-800/40 transition-colors"
+              [class.bg-brand-soft]="selectedGroup?.id === group.id"
+              [class.dark:bg-brand]="selectedGroup?.id === group.id"
+              [class.dark:bg-opacity-10]="selectedGroup?.id === group.id">
+            <!-- Avatar + name -->
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg
+                            bg-purple-100 dark:bg-purple-900/30 text-2xs font-semibold text-purple-700 dark:text-purple-300">
+                  {{ groupInitials(group) }}
+                </div>
+                <span class="font-medium text-ink dark:text-white truncate max-w-[180px]">
+                  {{ group.groupName }}
+                </span>
+              </div>
+            </td>
+            <!-- Code -->
+            <td class="px-4 py-3 font-mono text-ink-faint dark:text-zinc-500 hidden sm:table-cell">
+              {{ group.groupCode }}
+            </td>
+            <!-- Description -->
+            <td class="px-4 py-3 text-ink-soft dark:text-zinc-400 hidden md:table-cell truncate max-w-[260px]">
+              {{ group.groupDescription || '—' }}
+            </td>
+            <!-- Delete action -->
+            <td *ngIf="isAdmin" class="px-2 py-3 text-right">
+              <button
+                (click)="confirmDeleteGroup(group, $event)"
+                class="rounded p-1 text-ink-faint dark:text-zinc-500 hover:text-negative hover:bg-negative/5 transition-colors"
+                title="Supprimer ce groupe">
+                <app-svg-icon name="Trash2" class="h-3.5 w-3.5"></app-svg-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </ng-container>
+
+</div>
+
+<!-- ── Create user slide-in panel ─────────────────────────────────── -->
+<div *ngIf="panelOpen"
+     class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end"
+     (click)="closePanel()">
+
+  <!-- Backdrop -->
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-xs"></div>
+
+  <!-- Panel -->
+  <div class="relative z-10 w-full sm:w-[380px] sm:h-full sm:max-h-screen overflow-y-auto
+              bg-white dark:bg-zinc-900 border-t sm:border-t-0 sm:border-l border-line dark:border-zinc-800
+              rounded-t-xl sm:rounded-none shadow-pop flex flex-col"
+       (click)="$event.stopPropagation()">
+
+    <!-- Panel header -->
+    <div class="flex items-center justify-between border-b border-line dark:border-zinc-800 px-5 py-4 shrink-0">
+      <div class="flex items-center gap-2">
+        <app-svg-icon name="UserPlus" class="h-4 w-4 text-brand"></app-svg-icon>
+        <h2 class="text-sm font-semibold text-ink dark:text-white">Créer un utilisateur</h2>
+      </div>
+      <button (click)="closePanel()"
+              class="rounded-md p-1 text-ink-faint dark:text-zinc-400 hover:bg-surface-sunken dark:hover:bg-zinc-800 hover:text-ink dark:hover:text-white transition-colors">
+        <app-svg-icon name="X" class="h-4 w-4"></app-svg-icon>
+      </button>
+    </div>
+
+    <!-- Success state -->
+    <div *ngIf="createSuccess" class="flex flex-col items-center gap-3 p-8 text-center flex-1">
+      <div class="flex h-10 w-10 items-center justify-center rounded-full bg-positive/10">
+        <app-svg-icon name="Check" class="h-5 w-5 text-positive"></app-svg-icon>
+      </div>
+      <p class="text-xs font-semibold text-ink dark:text-white">Compte créé</p>
+      <p class="text-2xs text-ink-faint dark:text-zinc-400 leading-relaxed">
+        Un email d'activation a été envoyé à l'utilisateur.<br>
+        Il devra cliquer sur le lien pour définir son mot de passe.
+      </p>
+      <button (click)="openPanel()"
+              class="mt-2 flex h-8 items-center gap-1.5 rounded-md border border-line dark:border-zinc-700
+                     px-3 text-xs text-ink-soft dark:text-zinc-300 hover:bg-surface-muted dark:hover:bg-zinc-800 transition-colors">
+        <app-svg-icon name="UserPlus" class="h-3.5 w-3.5"></app-svg-icon>
+        Créer un autre
+      </button>
+    </div>
+
+    <!-- Form -->
+    <form *ngIf="!createSuccess"
+          [formGroup]="form" (ngSubmit)="onSubmit()"
+          novalidate class="flex flex-col gap-5 p-5 flex-1">
+
+      <p class="text-2xs text-ink-faint dark:text-zinc-400 leading-relaxed -mt-1">
+        L'utilisateur recevra un email d'activation pour définir son mot de passe.
+        Le compte sera en statut <span class="font-semibold text-caution">En attente</span> jusqu'à l'activation.
+      </p>
+
+      <!-- Display name -->
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-soft dark:text-zinc-300">
+          Nom d'affichage <span class="text-negative">*</span>
+        </label>
+        <input formControlName="displayName" type="text" autocomplete="off" placeholder="Carol Admin"
+               class="h-8 w-full rounded-md border pl-2.5 pr-2.5 text-xs outline-none transition-colors
+                      bg-surface-muted dark:bg-zinc-800 text-ink dark:text-white
+                      placeholder:text-ink-faint dark:placeholder:text-zinc-500
+                      focus:ring-1 focus:ring-brand focus:border-brand"
+               [class.border-negative]="fieldError('displayName','required')"
+               [class.border-line-strong]="!fieldError('displayName','required')"
+               [class.dark:border-zinc-700]="!fieldError('displayName','required')" />
+        <p *ngIf="fieldError('displayName','required')" class="mt-1 text-2xs text-negative">
+          Le nom d'affichage est requis.
+        </p>
+      </div>
+
+      <!-- Username -->
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-soft dark:text-zinc-300">
+          Nom d'utilisateur <span class="text-negative">*</span>
+        </label>
+        <input formControlName="username" type="text" autocomplete="off" placeholder="carol.admin"
+               class="h-8 w-full rounded-md border pl-2.5 pr-2.5 text-xs outline-none transition-colors
+                      bg-surface-muted dark:bg-zinc-800 text-ink dark:text-white
+                      placeholder:text-ink-faint dark:placeholder:text-zinc-500
+                      focus:ring-1 focus:ring-brand focus:border-brand"
+               [class.border-negative]="fieldError('username','required')"
+               [class.border-line-strong]="!fieldError('username','required')"
+               [class.dark:border-zinc-700]="!fieldError('username','required')" />
+        <p *ngIf="fieldError('username','required')" class="mt-1 text-2xs text-negative">
+          Le nom d'utilisateur est requis.
+        </p>
+      </div>
+
+      <!-- Email -->
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-soft dark:text-zinc-300">
+          Email <span class="text-negative">*</span>
+        </label>
+        <input formControlName="email" type="email" autocomplete="off" placeholder="carol@example.com"
+               class="h-8 w-full rounded-md border pl-2.5 pr-2.5 text-xs outline-none transition-colors
+                      bg-surface-muted dark:bg-zinc-800 text-ink dark:text-white
+                      placeholder:text-ink-faint dark:placeholder:text-zinc-500
+                      focus:ring-1 focus:ring-brand focus:border-brand"
+               [class.border-negative]="fieldError('email','required') || fieldError('email','email')"
+               [class.border-line-strong]="!fieldError('email','required') && !fieldError('email','email')"
+               [class.dark:border-zinc-700]="!fieldError('email','required') && !fieldError('email','email')" />
+        <p *ngIf="fieldError('email','required')" class="mt-1 text-2xs text-negative">L'email est requis.</p>
+        <p *ngIf="fieldError('email','email')"    class="mt-1 text-2xs text-negative">L'email n'est pas valide.</p>
+      </div>
+
+      <!-- Server error -->
+      <div *ngIf="createError"
+           class="rounded-md border border-negative/20 bg-negative/5 px-3 py-2 text-2xs text-negative">
+        {{ createError }}
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2 mt-auto pt-2">
+        <button type="button" (click)="closePanel()"
+                class="flex-1 h-8 rounded-md border border-line dark:border-zinc-700
+                       text-xs text-ink-soft dark:text-zinc-300
+                       hover:bg-surface-muted dark:hover:bg-zinc-800 transition-colors">
+          Annuler
+        </button>
+        <button type="submit" [disabled]="submitting"
+                class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-md bg-brand
+                       text-xs font-medium text-white hover:bg-brand-strong
+                       disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+          <svg *ngIf="submitting" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg"
+               fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          {{ submitting ? 'Création…' : 'Créer et envoyer l\'email' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Create group slide-in panel ────────────────────────────────── -->
+<div *ngIf="groupPanelOpen"
+     class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end"
+     (click)="closeGroupPanel()">
+
+  <!-- Backdrop -->
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-xs"></div>
+
+  <!-- Panel -->
+  <div class="relative z-10 w-full sm:w-[380px] sm:h-full sm:max-h-screen overflow-y-auto
+              bg-white dark:bg-zinc-900 border-t sm:border-t-0 sm:border-l border-line dark:border-zinc-800
+              rounded-t-xl sm:rounded-none shadow-pop flex flex-col"
+       (click)="$event.stopPropagation()">
+
+    <!-- Panel header -->
+    <div class="flex items-center justify-between border-b border-line dark:border-zinc-800 px-5 py-4 shrink-0">
+      <div class="flex items-center gap-2">
+        <app-svg-icon name="FolderPlus" class="h-4 w-4 text-brand"></app-svg-icon>
+        <h2 class="text-sm font-semibold text-ink dark:text-white">Créer un groupe</h2>
+      </div>
+      <button (click)="closeGroupPanel()"
+              class="rounded-md p-1 text-ink-faint dark:text-zinc-400 hover:bg-surface-sunken dark:hover:bg-zinc-800 hover:text-ink dark:hover:text-white transition-colors">
+        <app-svg-icon name="X" class="h-4 w-4"></app-svg-icon>
+      </button>
+    </div>
+
+    <!-- Success state -->
+    <div *ngIf="groupCreateSuccess" class="flex flex-col items-center gap-3 p-8 text-center flex-1">
+      <div class="flex h-10 w-10 items-center justify-center rounded-full bg-positive/10">
+        <app-svg-icon name="Check" class="h-5 w-5 text-positive"></app-svg-icon>
+      </div>
+      <p class="text-xs font-semibold text-ink dark:text-white">Groupe créé</p>
+      <p class="text-2xs text-ink-faint dark:text-zinc-400 leading-relaxed">
+        Le groupe est disponible dans l'onglet Groupes de chaque utilisateur.
+      </p>
+      <button (click)="openGroupPanel()"
+              class="mt-2 flex h-8 items-center gap-1.5 rounded-md border border-line dark:border-zinc-700
+                     px-3 text-xs text-ink-soft dark:text-zinc-300 hover:bg-surface-muted dark:hover:bg-zinc-800 transition-colors">
+        <app-svg-icon name="FolderPlus" class="h-3.5 w-3.5"></app-svg-icon>
+        Créer un autre
+      </button>
+    </div>
+
+    <!-- Form -->
+    <form *ngIf="!groupCreateSuccess"
+          [formGroup]="groupForm" (ngSubmit)="onGroupSubmit()"
+          novalidate class="flex flex-col gap-5 p-5 flex-1">
+
+      <p class="text-2xs text-ink-faint dark:text-zinc-400 leading-relaxed -mt-1">
+        Les groupes permettent de regrouper des utilisateurs pour faciliter le partage de dashboards et de requêtes.
+      </p>
+
+      <!-- Group name -->
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-soft dark:text-zinc-300">
+          Nom du groupe <span class="text-negative">*</span>
+        </label>
+        <input formControlName="groupName" type="text" autocomplete="off" placeholder="Équipe Analytics"
+               class="h-8 w-full rounded-md border pl-2.5 pr-2.5 text-xs outline-none transition-colors
+                      bg-surface-muted dark:bg-zinc-800 text-ink dark:text-white
+                      placeholder:text-ink-faint dark:placeholder:text-zinc-500
+                      focus:ring-1 focus:ring-brand focus:border-brand"
+               [class.border-negative]="groupFieldError('groupName','required')"
+               [class.border-line-strong]="!groupFieldError('groupName','required')"
+               [class.dark:border-zinc-700]="!groupFieldError('groupName','required')" />
+        <p *ngIf="groupFieldError('groupName','required')" class="mt-1 text-2xs text-negative">
+          Le nom du groupe est requis.
+        </p>
+      </div>
+
+      <!-- Group code -->
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-soft dark:text-zinc-300">
+          Code unique <span class="text-negative">*</span>
+        </label>
+        <input formControlName="groupCode" type="text" autocomplete="off" placeholder="ANALYTICS_TEAM"
+               class="h-8 w-full rounded-md border pl-2.5 pr-2.5 text-xs font-mono outline-none transition-colors
+                      bg-surface-muted dark:bg-zinc-800 text-ink dark:text-white
+                      placeholder:text-ink-faint dark:placeholder:text-zinc-500
+                      focus:ring-1 focus:ring-brand focus:border-brand"
+               [class.border-negative]="groupFieldError('groupCode','required')"
+               [class.border-line-strong]="!groupFieldError('groupCode','required')"
+               [class.dark:border-zinc-700]="!groupFieldError('groupCode','required')" />
+        <p *ngIf="groupFieldError('groupCode','required')" class="mt-1 text-2xs text-negative">
+          Le code est requis.
+        </p>
+        <p class="mt-1 text-2xs text-ink-faint dark:text-zinc-500">
+          Identifiant stable, non modifiable après création.
+        </p>
+      </div>
+
+      <!-- Description -->
+      <div>
+        <label class="mb-1 block text-xs font-medium text-ink-soft dark:text-zinc-300">
+          Description <span class="text-ink-faint dark:text-zinc-500 font-normal">(optionnel)</span>
+        </label>
+        <textarea formControlName="groupDescription" rows="3" placeholder="Description du groupe…"
+                  class="w-full rounded-md border pl-2.5 pr-2.5 py-1.5 text-xs outline-none transition-colors
+                         bg-surface-muted dark:bg-zinc-800 text-ink dark:text-white resize-none
+                         placeholder:text-ink-faint dark:placeholder:text-zinc-500
+                         border-line-strong dark:border-zinc-700
+                         focus:ring-1 focus:ring-brand focus:border-brand"></textarea>
+      </div>
+
+      <!-- Server error -->
+      <div *ngIf="groupCreateError"
+           class="rounded-md border border-negative/20 bg-negative/5 px-3 py-2 text-2xs text-negative">
+        {{ groupCreateError }}
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2 mt-auto pt-2">
+        <button type="button" (click)="closeGroupPanel()"
+                class="flex-1 h-8 rounded-md border border-line dark:border-zinc-700
+                       text-xs text-ink-soft dark:text-zinc-300
+                       hover:bg-surface-muted dark:hover:bg-zinc-800 transition-colors">
+          Annuler
+        </button>
+        <button type="submit" [disabled]="groupSubmitting"
+                class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-md bg-brand
+                       text-xs font-medium text-white hover:bg-brand-strong
+                       disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+          <svg *ngIf="groupSubmitting" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg"
+               fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          {{ groupSubmitting ? 'Création…' : 'Créer le groupe' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── User detail slide-in panel ─────────────────────────────────── -->
+<div *ngIf="selectedUser"
+     class="fixed inset-0 z-40 flex justify-end"
+     (click)="closeDetail()">
+
+  <div class="absolute inset-0 bg-black/30 backdrop-blur-xs"></div>
+
+  <div class="relative z-10 w-full sm:w-[460px] h-full bg-white dark:bg-zinc-900
+              border-l border-line dark:border-zinc-800 shadow-pop flex flex-col overflow-hidden"
+       (click)="$event.stopPropagation()">
+
+    <!-- Detail header -->
+    <div class="flex items-center justify-between border-b border-line dark:border-zinc-800 px-5 py-4 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                    bg-brand-soft dark:bg-brand/20 text-sm font-semibold text-brand-strong dark:text-brand">
+          {{ initials(selectedUser) }}
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-ink dark:text-white leading-tight">
+            {{ selectedUser.displayName || selectedUser.username }}
+          </p>
+          <p class="text-2xs text-ink-faint dark:text-zinc-400">{{ selectedUser.email }}</p>
+        </div>
+      </div>
+      <button (click)="closeDetail()"
+              class="rounded-md p-1 text-ink-faint dark:text-zinc-400 hover:bg-surface-sunken dark:hover:bg-zinc-800 hover:text-ink dark:hover:text-white transition-colors">
+        <app-svg-icon name="X" class="h-4 w-4"></app-svg-icon>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex shrink-0 border-b border-line dark:border-zinc-800 px-1">
+      <button (click)="switchTab('profil')"
+              class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors"
+              [class.border-brand]="detailTab === 'profil'"
+              [class.text-brand]="detailTab === 'profil'"
+              [class.border-transparent]="detailTab !== 'profil'"
+              [class.text-ink-faint]="detailTab !== 'profil'">
+        Profil
+      </button>
+      <button (click)="switchTab('roles')"
+              class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors"
+              [class.border-brand]="detailTab === 'roles'"
+              [class.text-brand]="detailTab === 'roles'"
+              [class.border-transparent]="detailTab !== 'roles'"
+              [class.text-ink-faint]="detailTab !== 'roles'">
+        Rôles
+      </button>
+      <button (click)="switchTab('groupes')"
+              class="px-4 py-2.5 text-xs font-medium border-b-2 transition-colors"
+              [class.border-brand]="detailTab === 'groupes'"
+              [class.text-brand]="detailTab === 'groupes'"
+              [class.border-transparent]="detailTab !== 'groupes'"
+              [class.text-ink-faint]="detailTab !== 'groupes'">
+        Groupes
+      </button>
+    </div>
+
+    <!-- Tab content -->
+    <div class="flex-1 overflow-y-auto p-5">
+
+      <!-- ── Profil tab ──────────────────────────────────────────────── -->
+      <ng-container *ngIf="detailTab === 'profil'">
+        <div class="space-y-4">
+
+          <div class="rounded-lg border border-line dark:border-zinc-800 divide-y divide-line dark:divide-zinc-800 overflow-hidden">
+
+            <div class="flex items-center justify-between px-4 py-2.5">
+              <span class="text-2xs text-ink-faint dark:text-zinc-500">Nom d'utilisateur</span>
+              <span class="text-xs font-medium text-ink dark:text-white">{{ selectedUser.username }}</span>
+            </div>
+
+            <div class="flex items-center justify-between px-4 py-2.5">
+              <span class="text-2xs text-ink-faint dark:text-zinc-500">Email</span>
+              <span class="text-xs text-ink-soft dark:text-zinc-300">{{ selectedUser.email }}</span>
+            </div>
+
+            <div class="flex items-center justify-between px-4 py-2.5">
+              <span class="text-2xs text-ink-faint dark:text-zinc-500">Statut</span>
+              <span class="inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold"
+                    [class]="statusClass(selectedUser.accountStatus)">
+                {{ statusLabel(selectedUser.accountStatus) }}
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between px-4 py-2.5">
+              <span class="text-2xs text-ink-faint dark:text-zinc-500">Dernière connexion</span>
+              <span class="text-xs text-ink-faint dark:text-zinc-500">{{ formatDate(selectedUser.lastLoginAt) }}</span>
+            </div>
+
+            <div class="flex items-center justify-between px-4 py-2.5">
+              <span class="text-2xs text-ink-faint dark:text-zinc-500">ID</span>
+              <span class="text-2xs font-mono text-ink-faint dark:text-zinc-500 truncate max-w-[200px]">{{ selectedUser.id }}</span>
+            </div>
+
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ── Rôles tab ───────────────────────────────────────────────── -->
+      <ng-container *ngIf="detailTab === 'roles'">
+
+        <!-- Loading -->
+        <div *ngIf="rolesLoading" class="flex justify-center py-10">
+          <svg class="h-4 w-4 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="rolesError && !rolesLoading"
+             class="rounded-md border border-negative/20 bg-negative/5 px-3 py-2 text-2xs text-negative">
+          {{ rolesError }}
+        </div>
+
+        <!-- Role list -->
+        <div *ngIf="!rolesLoading && !rolesError" class="space-y-2">
+
+          <p class="text-2xs text-ink-faint dark:text-zinc-500 mb-3">
+            Cochez les rôles à attribuer. Plusieurs rôles peuvent être actifs simultanément.
+          </p>
+
+          <label *ngFor="let role of allRoles"
+                 (click)="toggleRole(role.id)"
+                 class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors"
+                 [class.border-brand]="isRoleChecked(role.id)"
+                 [class.bg-brand-soft]="isRoleChecked(role.id)"
+                 [class.dark:bg-brand]="isRoleChecked(role.id)"
+                 [class.dark:bg-opacity-10]="isRoleChecked(role.id)"
+                 [class.border-line]="!isRoleChecked(role.id)"
+                 [class.dark:border-zinc-800]="!isRoleChecked(role.id)"
+                 [class.hover:border-line-strong]="!isRoleChecked(role.id)">
+            <div class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors"
+                 [class.bg-brand]="isRoleChecked(role.id)"
+                 [class.border-brand]="isRoleChecked(role.id)"
+                 [class.border-line-strong]="!isRoleChecked(role.id)"
+                 [class.dark:border-zinc-600]="!isRoleChecked(role.id)">
+              <svg *ngIf="isRoleChecked(role.id)" class="h-2.5 w-2.5 text-white"
+                   viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 5l3.5 3.5L11 1" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-ink dark:text-white">{{ roleLabel(role.roleName) }}</p>
+              <p class="text-2xs text-ink-faint dark:text-zinc-500 mt-0.5">{{ roleDesc(role.roleName) }}</p>
+            </div>
+          </label>
+
+          <!-- Save / feedback -->
+          <div class="flex items-center justify-between pt-2">
+            <span *ngIf="rolesSaved" class="text-2xs text-positive flex items-center gap-1">
+              <app-svg-icon name="Check" class="h-3 w-3"></app-svg-icon>
+              Rôles sauvegardés
+            </span>
+            <span *ngIf="rolesError" class="text-2xs text-negative">{{ rolesError }}</span>
+            <div class="ml-auto">
+              <button (click)="saveRoles()"
+                      [disabled]="rolesSaving || !rolesDirty"
+                      class="flex items-center gap-1.5 h-8 rounded-md bg-brand px-4 text-xs font-medium text-white
+                             hover:bg-brand-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <svg *ngIf="rolesSaving" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg"
+                     fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                {{ rolesSaving ? 'Sauvegarde…' : 'Sauvegarder' }}
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </ng-container>
+
+      <!-- ── Groupes tab ─────────────────────────────────────────────── -->
+      <ng-container *ngIf="detailTab === 'groupes'">
+
+        <!-- Loading -->
+        <div *ngIf="groupsLoading" class="flex justify-center py-10">
+          <svg class="h-4 w-4 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+        </div>
+
+        <div *ngIf="!groupsLoading" class="space-y-4">
+
+          <!-- Error -->
+          <div *ngIf="groupsError"
+               class="rounded-md border border-negative/20 bg-negative/5 px-3 py-2 text-2xs text-negative">
+            {{ groupsError }}
+          </div>
+
+          <!-- Current memberships -->
+          <div>
+            <p class="text-2xs font-semibold uppercase tracking-wide text-ink-faint dark:text-zinc-500 mb-2">
+              Groupes actuels
+            </p>
+
+            <div *ngIf="userGroups.length === 0"
+                 class="rounded-lg border border-dashed border-line dark:border-zinc-700 px-4 py-6 text-center">
+              <p class="text-2xs text-ink-faint dark:text-zinc-500">Aucun groupe.</p>
+            </div>
+
+            <div *ngIf="userGroups.length > 0"
+                 class="rounded-lg border border-line dark:border-zinc-800 divide-y divide-line dark:divide-zinc-800 overflow-hidden">
+              <div *ngFor="let g of userGroups"
+                   class="flex items-center justify-between px-3 py-2.5">
+                <div>
+                  <p class="text-xs font-semibold text-ink dark:text-white">{{ g.groupName }}</p>
+                  <p class="text-2xs text-ink-faint dark:text-zinc-500">
+                    {{ membershipRoleLabel(g.membershipRole) }} · <span class="font-mono">{{ g.groupCode }}</span>
+                  </p>
+                </div>
+                <button *ngIf="isAdmin"
+                        (click)="removeFromGroup(g.groupId)"
+                        class="p-1 text-ink-faint hover:text-negative rounded transition-colors"
+                        title="Retirer du groupe">
+                  <app-svg-icon name="X" class="h-3.5 w-3.5"></app-svg-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add to group (admin only) -->
+          <div *ngIf="isAdmin">
+            <p class="text-2xs font-semibold uppercase tracking-wide text-ink-faint dark:text-zinc-500 mb-2">
+              Ajouter à un groupe
+            </p>
+            <div class="flex gap-2">
+              <select [(ngModel)]="addGroupId"
+                      class="flex-1 h-8 rounded-md border border-line-strong dark:border-zinc-700
+                             bg-surface-muted dark:bg-zinc-800 text-xs text-ink dark:text-white
+                             px-2 outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+                <option value="">Choisir un groupe…</option>
+                <option *ngFor="let g of availableGroups()" [value]="g.id">{{ g.groupName }}</option>
+              </select>
+              <select [(ngModel)]="addMembershipRole"
+                      class="h-8 w-[120px] rounded-md border border-line-strong dark:border-zinc-700
+                             bg-surface-muted dark:bg-zinc-800 text-xs text-ink dark:text-white
+                             px-2 outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+                <option value="MEMBER">Membre</option>
+                <option value="READER">Lecteur</option>
+                <option value="ADMIN">Admin</option>
+                <option value="OWNER">Propriétaire</option>
+              </select>
+              <button (click)="addToGroup()"
+                      [disabled]="!addGroupId || addingGroup"
+                      class="h-8 rounded-md bg-brand px-3 text-xs font-medium text-white
+                             hover:bg-brand-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <svg *ngIf="addingGroup" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg"
+                     fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <span *ngIf="!addingGroup">Ajouter</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </ng-container>
+
+    </div><!-- /tab content -->
+  </div><!-- /panel body -->
+</div><!-- /detail panel -->
+
+<!-- ── Group detail slide-in panel ────────────────────────────────── -->
+<div *ngIf="selectedGroup"
+     class="fixed inset-0 z-40 flex justify-end"
+     (click)="closeGroupDetail()">
+
+  <div class="absolute inset-0 bg-black/30 backdrop-blur-xs"></div>
+
+  <div class="relative z-10 w-full sm:w-[460px] h-full bg-white dark:bg-zinc-900
+              border-l border-line dark:border-zinc-800 shadow-pop flex flex-col overflow-hidden"
+       (click)="$event.stopPropagation()">
+
+    <!-- Detail header -->
+    <div class="flex items-center justify-between border-b border-line dark:border-zinc-800 px-5 py-4 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg
+                    bg-purple-100 dark:bg-purple-900/30 text-sm font-semibold text-purple-700 dark:text-purple-300">
+          {{ groupInitials(selectedGroup) }}
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-ink dark:text-white leading-tight">{{ selectedGroup.groupName }}</p>
+          <p class="text-2xs font-mono text-ink-faint dark:text-zinc-400">{{ selectedGroup.groupCode }}</p>
+        </div>
+      </div>
+      <button (click)="closeGroupDetail()"
+              class="rounded-md p-1 text-ink-faint dark:text-zinc-400 hover:bg-surface-sunken dark:hover:bg-zinc-800 hover:text-ink dark:hover:text-white transition-colors">
+        <app-svg-icon name="X" class="h-4 w-4"></app-svg-icon>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
+
+      <!-- Description -->
+      <p *ngIf="selectedGroup.groupDescription"
+         class="text-xs text-ink-soft dark:text-zinc-300 leading-relaxed">
+        {{ selectedGroup.groupDescription }}
+      </p>
+
+      <!-- Members section -->
+      <div>
+        <p class="text-2xs font-semibold uppercase tracking-wide text-ink-faint dark:text-zinc-500 mb-2">
+          Membres
+        </p>
+
+        <!-- Loading -->
+        <div *ngIf="loadingGroupMembers" class="flex justify-center py-6">
+          <svg class="h-4 w-4 animate-spin text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="!loadingGroupMembers && errorGroupMembers"
+             class="rounded-md border border-negative/20 bg-negative/5 px-3 py-2 text-2xs text-negative">
+          {{ errorGroupMembers }}
+        </div>
+
+        <div *ngIf="!loadingGroupMembers && !errorGroupMembers">
+
+          <!-- Empty state -->
+          <div *ngIf="groupMembers.length === 0"
+               class="rounded-lg border border-dashed border-line dark:border-zinc-700 px-4 py-6 text-center">
+            <p class="text-2xs text-ink-faint dark:text-zinc-500">Aucun membre dans ce groupe.</p>
+          </div>
+
+          <!-- Members list -->
+          <div *ngIf="groupMembers.length > 0"
+               class="rounded-lg border border-line dark:border-zinc-800 divide-y divide-line dark:divide-zinc-800 overflow-hidden">
+            <div *ngFor="let m of groupMembers"
+                 class="flex items-center justify-between px-3 py-2.5">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full
+                            bg-brand-soft dark:bg-brand/20 text-2xs font-semibold text-brand-strong dark:text-brand">
+                  {{ memberInitials(m) }}
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold text-ink dark:text-white truncate">{{ m.displayName || m.username }}</p>
+                  <p class="text-2xs text-ink-faint dark:text-zinc-500">{{ membershipRoleLabel(m.membershipRole) }}</p>
+                </div>
+              </div>
+              <button *ngIf="isAdmin"
+                      (click)="removeGroupMember(m.userId)"
+                      class="p-1 text-ink-faint dark:text-zinc-500 hover:text-negative rounded transition-colors"
+                      title="Retirer du groupe">
+                <app-svg-icon name="X" class="h-3.5 w-3.5"></app-svg-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add member (admin only) -->
+      <div *ngIf="isAdmin">
+        <p class="text-2xs font-semibold uppercase tracking-wide text-ink-faint dark:text-zinc-500 mb-2">
+          Ajouter un membre
+        </p>
+        <div class="flex gap-2">
+          <select [(ngModel)]="addMemberUserId"
+                  class="flex-1 h-8 rounded-md border border-line-strong dark:border-zinc-700
+                         bg-surface-muted dark:bg-zinc-800 text-xs text-ink dark:text-white
+                         px-2 outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+            <option value="">Choisir un utilisateur…</option>
+            <option *ngFor="let u of availableUsersForGroup()" [value]="u.id">{{ u.displayName || u.username }}</option>
+          </select>
+          <select [(ngModel)]="addMemberRole"
+                  class="h-8 w-[120px] rounded-md border border-line-strong dark:border-zinc-700
+                         bg-surface-muted dark:bg-zinc-800 text-xs text-ink dark:text-white
+                         px-2 outline-none focus:ring-1 focus:ring-brand focus:border-brand">
+            <option value="MEMBER">Membre</option>
+            <option value="READER">Lecteur</option>
+            <option value="ADMIN">Admin</option>
+            <option value="OWNER">Propriétaire</option>
+          </select>
+          <button (click)="addMemberToGroup()"
+                  [disabled]="!addMemberUserId || addingMember"
+                  class="h-8 rounded-md bg-brand px-3 text-xs font-medium text-white
+                         hover:bg-brand-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <svg *ngIf="addingMember" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg"
+                 fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <span *ngIf="!addingMember">Ajouter</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete confirmation toast ──────────────────────────────────── -->
+<div *ngIf="deleteTarget"
+     class="fixed inset-0 z-[60] flex items-center justify-center px-4"
+     (click)="cancelDelete()">
+
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-xs"></div>
+
+  <div class="relative z-10 w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900
+              border border-line dark:border-zinc-800 shadow-pop p-5 flex flex-col gap-4"
+       (click)="$event.stopPropagation()">
+
+    <!-- Icon + title -->
+    <div class="flex items-start gap-3">
+      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-negative/10">
+        <app-svg-icon name="Trash2" class="h-4 w-4 text-negative"></app-svg-icon>
+      </div>
+      <div>
+        <p class="text-sm font-semibold text-ink dark:text-white">Supprimer cet utilisateur ?</p>
+        <p class="text-2xs text-ink-faint dark:text-zinc-400 mt-0.5 leading-relaxed">
+          <span class="font-medium text-ink dark:text-white">{{ deleteTarget.displayName || deleteTarget.username }}</span>
+          sera définitivement supprimé. Cette action est irréversible.
+        </p>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="deleteError"
+         class="rounded-md border border-negative/20 bg-negative/5 px-3 py-2 text-2xs text-negative">
+      {{ deleteError }}
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-2">
+      <button (click)="cancelDelete()" [disabled]="deleting"
+              class="flex-1 h-8 rounded-md border border-line dark:border-zinc-700
+                     text-xs text-ink-soft dark:text-zinc-300
+                     hover:bg-surface-muted dark:hover:bg-zinc-800
+                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        Annuler
+      </button>
+      <button (click)="executeDelete()" [disabled]="deleting"
+              class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-md bg-negative
+                     text-xs font-medium text-white hover:bg-negative/90
+                     disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+        <svg *ngIf="deleting" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg"
+             fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        {{ deleting ? 'Suppression…' : 'Confirmer' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete group confirmation modal ────────────────────────────── -->
+<div *ngIf="deleteGroupTarget"
+     class="fixed inset-0 z-[60] flex items-center justify-center px-4"
+     (click)="cancelDeleteGroup()">
+
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-xs"></div>
+
+  <div class="relative z-10 w-full max-w-sm rounded-xl bg-white dark:bg-zinc-900
+              border border-line dark:border-zinc-800 shadow-pop p-5 flex flex-col gap-4"
+       (click)="$event.stopPropagation()">
+
+    <!-- Icon + title -->
+    <div class="flex items-start gap-3">
+      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-negative/10">
+        <app-svg-icon name="Trash2" class="h-4 w-4 text-negative"></app-svg-icon>
+      </div>
+      <div>
+        <p class="text-sm font-semibold text-ink dark:text-white">
+          Supprimer le groupe « {{ deleteGroupTarget.groupName }} » ?
+        </p>
+        <p class="text-2xs text-ink-faint dark:text-zinc-400 mt-1 leading-relaxed">
+          Le groupe sera définitivement supprimé.
+          <ng-container *ngIf="deleteGroupMemberCount > 0">
+            Ses <span class="font-semibold text-ink dark:text-white">{{ deleteGroupMemberCount }}
+            {{ deleteGroupMemberCount === 1 ? 'membre perdra les accès' : 'membres perdront les accès' }}</span>
+            partagés via ce groupe,
+          </ng-container>
+          <ng-container *ngIf="deleteGroupMemberCount === 0">
+            Aucun membre ne sera affecté,
+          </ng-container>
+          mais <span class="font-semibold text-ink dark:text-white">aucun compte utilisateur ne sera supprimé</span>.
+          Cette action est irréversible.
+        </p>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="deleteGroupError"
+         class="rounded-md border border-negative/20 bg-negative/5 px-3 py-2 text-2xs text-negative">
+      {{ deleteGroupError }}
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-2">
+      <button (click)="cancelDeleteGroup()" [disabled]="deletingGroup"
+              class="flex-1 h-8 rounded-md border border-line dark:border-zinc-700
+                     text-xs text-ink-soft dark:text-zinc-300
+                     hover:bg-surface-muted dark:hover:bg-zinc-800
+                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        Annuler
+      </button>
+      <button (click)="executeDeleteGroup()" [disabled]="deletingGroup"
+              class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-md bg-negative
+                     text-xs font-medium text-white hover:bg-negative/90
+                     disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+        <svg *ngIf="deletingGroup" class="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg"
+             fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        {{ deletingGroup ? 'Suppression…' : 'Confirmer' }}
+      </button>
+    </div>
+  </div>
+</div>

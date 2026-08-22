@@ -8,12 +8,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Option 1 — Role annotation.
- * Restricts access to TENANT_ADMIN or SYSTEM_ADMIN.
- * SYSTEM_ADMIN is always included — a system admin can do anything a tenant admin can.
+ * Restricts access to TENANT_ADMIN or SUPER_ADMIN.
+ * SUPER_ADMIN is always included — a super admin can do anything a tenant admin can.
+ * Role names come from AppRole — update both if a role is renamed.
  * This composition lives here, not scattered across every endpoint.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-@PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
+@PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SUPER_ADMIN')")
 public @interface IsTenantAdmin {}

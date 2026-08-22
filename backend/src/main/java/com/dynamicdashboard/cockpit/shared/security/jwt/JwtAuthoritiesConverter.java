@@ -55,7 +55,7 @@ public class JwtAuthoritiesConverter implements Converter<Jwt, AbstractAuthentic
             // The live DB hit - one query, every request, resolving roles -> permissions.
             if (!roles.isEmpty()) {
                 roles.forEach(r -> authorities.add(new SimpleGrantedAuthority("ROLE_" + r)));
-                roles.forEach(r -> System.out.println(r));
+
                 List<String> permissions = rolePermissionRepository.findPermissionsByRolesNames(roles);
                 permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
             }

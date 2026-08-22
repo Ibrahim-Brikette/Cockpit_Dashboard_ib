@@ -1,15 +1,22 @@
 package com.dynamicdashboard.cockpit.identity.application;
 
-import com.dynamicdashboard.cockpit.identity.application.dto.CreateUserRequest;
-import com.dynamicdashboard.cockpit.identity.application.dto.UserAccountDto;
+import com.dynamicdashboard.cockpit.analytics.repository.AnalyticsEventRepository;
+import com.dynamicdashboard.cockpit.audit.repository.AuditEventRepository;
+import com.dynamicdashboard.cockpit.dashboard.repository.DashboardRepository;
+import com.dynamicdashboard.cockpit.identity.application.dto.*;
 import com.dynamicdashboard.cockpit.identity.application.mapper.IdentityMapper;
-import com.dynamicdashboard.cockpit.identity.domain.UserAccountEntity;
-import com.dynamicdashboard.cockpit.identity.repository.UserAccountRepository;
+import com.dynamicdashboard.cockpit.identity.domain.*;
+import com.dynamicdashboard.cockpit.identity.repository.*;
+import com.dynamicdashboard.cockpit.query.repository.DataQueryRepository;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.AccountStatus;
+import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.AssignmentScope;
+import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.MembershipRole;
 import com.dynamicdashboard.cockpit.shared.security.CurrentUserService;
 import com.dynamicdashboard.cockpit.shared.security.MailService;
 import com.dynamicdashboard.cockpit.shared.security.auth.entity.EmailVerificationTokenEntity;
 import com.dynamicdashboard.cockpit.shared.security.auth.repository.EmailVerificationTokenRepository;
+import com.dynamicdashboard.cockpit.sharing.repository.DashboardShareGrantRepository;
+import com.dynamicdashboard.cockpit.sharing.repository.QueryShareGrantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,6 +52,20 @@ public class IdentityApplicationService {
     private final CurrentUserService               currentUserService;
     private final PasswordEncoder                  passwordEncoder;
     private final MailService                      mailService;
+
+    // Phase 3 — role / group management
+    private final RoleRepository                   roleRepository;
+    private final UserRoleAssignmentRepository     userRoleAssignmentRepository;
+    private final UserGroupRepository              userGroupRepository;
+    private final UserGroupMembershipRepository    userGroupMembershipRepository;
+
+    // Needed for safe user deletion — clean FK references before removing the row
+    private final DashboardRepository              dashboardRepository;
+    private final DataQueryRepository              dataQueryRepository;
+    private final DashboardShareGrantRepository    dashboardShareGrantRepository;
+    private final QueryShareGrantRepository        queryShareGrantRepository;
+    private final AuditEventRepository             auditEventRepository;
+    private final AnalyticsEventRepository         analyticsEventRepository;
 
     // -------------------------------------------------------------------------
     // OLD getCurrentUser — commented, not deleted
@@ -174,6 +195,238 @@ public class IdentityApplicationService {
 
         log.info("User created (PENDING): userId={} username={}", user.getId(), user.getUsername());
         return identityMapper.toDto(user);
+    }
+
+    // =========================================================================
+    // ROLES
+    // =========================================================================
+
+    @Transactional(readOnly = true)
+    public List<RoleDto> getRoles() {
+        return roleRepository.findAll().stream()
+                .map(r -> new RoleDto(r.getId(), r.getRoleName(), r.getRoleDescription()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserRoleDto> getUserRoles(UUID userId) {
+        return userRoleAssignmentRepository.findByUser_Id(userId).stream()
+                .map(a -> new UserRoleDto(
+                        a.getId(),
+                        a.getRole().getId(),
+                        a.getRole().getRoleName(),
+                        a.getAssignmentScope().name()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public UserRoleDto assignRole(UUID userId, AssignRoleRequest request) {
+        UserAccountEntity user = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+        RoleEntity role = roleRepository.findById(request.roleId())
+                .orElseThrow(() -> new NoSuchElementException("Role not found: " + request.roleId()));
+
+        // Idempotent guard — prevent duplicate assignment
+        userRoleAssignmentRepository.findByUser_IdAndRole_Id(userId, request.roleId())
+                .ifPresent(e -> { throw new IllegalArgumentException("Role already assigned to this user"); });
+
+        UserRoleAssignmentEntity assignment = new UserRoleAssignmentEntity();
+        assignment.setUser(user);
+        assignment.setRole(role);
+        assignment.setAssignmentScope(
+                request.assignmentScope() != null ? request.assignmentScope() : AssignmentScope.ORGANIZATION);
+        userRoleAssignmentRepository.save(assignment);
+
+        log.info("Role assigned: userId={} roleId={} scope={}", userId, request.roleId(), assignment.getAssignmentScope());
+        return new UserRoleDto(assignment.getId(), role.getId(), role.getRoleName(), assignment.getAssignmentScope().name());
+    }
+
+    @Transactional
+    public void removeRole(UUID userId, UUID roleId) {
+        userRoleAssignmentRepository.findByUser_IdAndRole_Id(userId, roleId)
+                .orElseThrow(() -> new NoSuchElementException("Role assignment not found for userId=" + userId + " roleId=" + roleId));
+        userRoleAssignmentRepository.deleteByUserIdAndRoleId(userId, roleId);
+        log.info("Role removed: userId={} roleId={}", userId, roleId);
+    }
+
+    // =========================================================================
+    // GROUPS
+    // =========================================================================
+
+    @Transactional(readOnly = true)
+    public List<GroupDto> getGroups() {
+        return userGroupRepository.findAll().stream()
+                .map(g -> new GroupDto(g.getId(), g.getGroupName(), g.getGroupCode(), g.getGroupDescription()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public GroupDto createGroup(CreateGroupRequest request) {
+        if (userGroupRepository.findByGroupCode(request.groupCode()).isPresent()) {
+            throw new IllegalArgumentException("Group code already exists: " + request.groupCode());
+        }
+        UserGroupEntity group = new UserGroupEntity();
+        group.setGroupName(request.groupName());
+        group.setGroupCode(request.groupCode());
+        group.setGroupDescription(request.groupDescription());
+        userGroupRepository.save(group);
+        log.info("Group created: groupId={} code={}", group.getId(), group.getGroupCode());
+        return new GroupDto(group.getId(), group.getGroupName(), group.getGroupCode(), group.getGroupDescription());
+    }
+
+    @Transactional(readOnly = true)
+    public List<GroupMemberDto> getGroupMembers(UUID groupId) {
+        return userGroupMembershipRepository.findByGroup_Id(groupId).stream()
+                .map(m -> new GroupMemberDto(
+                        m.getId(),
+                        m.getUser().getId(),
+                        m.getUser().getDisplayName(),
+                        m.getUser().getUsername(),
+                        m.getMembershipRole().name()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public GroupMemberDto addGroupMember(UUID groupId, AddGroupMemberRequest request) {
+        UserGroupEntity group = userGroupRepository.findById(groupId)
+                .orElseThrow(() -> new NoSuchElementException("Group not found: " + groupId));
+        UserAccountEntity user = userAccountRepository.findById(request.userId())
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + request.userId()));
+
+        // Idempotent guard — prevent duplicate membership
+        userGroupMembershipRepository.findByGroup_IdAndUser_Id(groupId, request.userId())
+                .ifPresent(e -> { throw new IllegalArgumentException("User is already a member of this group"); });
+
+        UserGroupMembershipEntity membership = new UserGroupMembershipEntity();
+        membership.setGroup(group);
+        membership.setUser(user);
+        membership.setMembershipRole(
+                request.membershipRole() != null ? request.membershipRole() : MembershipRole.MEMBER);
+        userGroupMembershipRepository.save(membership);
+
+        log.info("Group member added: groupId={} userId={} role={}", groupId, request.userId(), membership.getMembershipRole());
+        return new GroupMemberDto(
+                membership.getId(),
+                user.getId(),
+                user.getDisplayName(),
+                user.getUsername(),
+                membership.getMembershipRole().name());
+    }
+
+    /**
+     * User-centric group view — "which groups does this user belong to?"
+     * Used by the detail panel Groupes tab in the admin UI.
+     */
+    @Transactional(readOnly = true)
+    public List<UserGroupDto> getUserGroups(UUID userId) {
+        return userGroupMembershipRepository.findByUser_Id(userId).stream()
+                .map(m -> new UserGroupDto(
+                        m.getId(),
+                        m.getGroup().getId(),
+                        m.getGroup().getGroupName(),
+                        m.getGroup().getGroupCode(),
+                        m.getMembershipRole().name()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Permanently deletes a group after cleaning up all FK references.
+     *
+     * The DB has ON DELETE CASCADE on user_group_membership.group_id,
+     * dashboard_share_grant.grantee_group_id, and query_share_grant.grantee_group_id,
+     * so the DB would cascade automatically. We still run the JPQL bulk deletes first
+     * to keep the Hibernate persistence context consistent before the entity delete.
+     * Both layers (Hibernate + DB) must agree on what is gone before the commit.
+     *
+     * Cleanup order:
+     *   1. All memberships pointing to this group (JPQL bulk delete + DB cascade).
+     *   2. All dashboard share grants where this group is the grantee.
+     *   3. All query share grants where this group is the grantee.
+     *   4. The group row itself.
+     *
+     * User accounts are never touched — members simply lose this group's access.
+     *
+     * @throws NoSuchElementException if the group does not exist.
+     */
+    @Transactional
+    public void deleteGroup(UUID groupId) {
+        UserGroupEntity group = userGroupRepository.findById(groupId)
+                .orElseThrow(() -> new NoSuchElementException("Group not found: " + groupId));
+
+        // Clean dependent rows explicitly so the Hibernate session stays consistent.
+        // clearAutomatically = true on each @Modifying method evicts stale entities
+        // from the first-level cache after each bulk delete.
+        userGroupMembershipRepository.deleteByGroup_Id(groupId);
+        dashboardShareGrantRepository.deleteByGranteeGroup_Id(groupId);
+        queryShareGrantRepository.deleteByGranteeGroup_Id(groupId);
+
+        userGroupRepository.delete(group);
+        log.info("Group deleted: groupId={} code={}", groupId, group.getGroupCode());
+    }
+
+    @Transactional
+    public void removeGroupMember(UUID groupId, UUID userId) {
+        userGroupMembershipRepository.findByGroup_IdAndUser_Id(groupId, userId)
+                .orElseThrow(() -> new NoSuchElementException("Membership not found for groupId=" + groupId + " userId=" + userId));
+        userGroupMembershipRepository.deleteByGroupIdAndUserId(groupId, userId);
+        log.info("Group member removed: groupId={} userId={}", groupId, userId);
+    }
+
+    // =========================================================================
+    // DELETE USER — STANDALONE only
+    // =========================================================================
+
+    /**
+     * Permanently deletes a user account after cleaning up all FK references.
+     *
+     * Self-deletion is blocked: an admin cannot delete their own account through
+     * the UI — this prevents accidental lockout.
+     *
+     * Deletion is also blocked if the user owns dashboards or queries.  Those
+     * resources must be reassigned or deleted before the user can be removed —
+     * we do not cascade-delete business data silently.
+     *
+     * Everything else is cleaned automatically in the same transaction:
+     *   - role assignments (NOT NULL FK → must delete)
+     *   - group memberships (NOT NULL FK → must delete)
+     *   - share grants where this user is the grantee (nullable FK → delete)
+     *   - audit events where this user is the actor (nullable FK → nullify)
+     *   - analytics events where this user is the actor (nullable FK → nullify)
+     *
+     * @throws IllegalArgumentException      if the caller is trying to delete themselves
+     * @throws NoSuchElementException        if the target user does not exist
+     * @throws UserDeletionBlockedException  if the user owns dashboards or queries
+     */
+    @Transactional
+    public void deleteUser(UUID id) {
+        UserAccountEntity current = currentUserService.getCurrentUser();
+        if (current != null && current.getId().equals(id)) {
+            throw new IllegalArgumentException("Cannot delete your own account");
+        }
+        UserAccountEntity user = userAccountRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + id));
+
+        // Block if the user owns business data — do not silently cascade-delete dashboards or queries
+        long ownedDashboards = dashboardRepository.countByOwnerId(id);
+        long ownedQueries    = dataQueryRepository.countByOwnerId(id);
+        if (ownedDashboards > 0 || ownedQueries > 0) {
+            throw new UserDeletionBlockedException(ownedDashboards, ownedQueries);
+        }
+
+        // Clean NOT-NULL FK references (must delete rows, not nullify)
+        userRoleAssignmentRepository.deleteByUser_Id(id);
+        userGroupMembershipRepository.deleteByUser_Id(id);
+
+        // Clean nullable FK references where this user is the grantee
+        dashboardShareGrantRepository.deleteByGranteeUser_Id(id);
+        queryShareGrantRepository.deleteByGranteeUser_Id(id);
+
+        // Nullify nullable actor references — preserve the log entries, just anonymise the actor
+        auditEventRepository.nullifyActorByUserId(id);
+        analyticsEventRepository.nullifyActorByUserId(id);
+
+        userAccountRepository.delete(user);
+        log.info("User deleted: userId={} username={}", id, user.getUsername());
     }
 
     // ------------------------------------------------------------------

@@ -2,6 +2,7 @@ package com.dynamicdashboard.cockpit.shared.security.permission_evaluators;
 
 import com.dynamicdashboard.cockpit.dashboard.domain.DashboardEntity;
 import com.dynamicdashboard.cockpit.dashboard.repository.DashboardRepository;
+import com.dynamicdashboard.cockpit.shared.security.authorization.AppRole;
 import com.dynamicdashboard.cockpit.shared.security.authorization.DashboardPermission;
 import com.dynamicdashboard.cockpit.sharing.repository.DashboardShareGrantRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,13 +48,12 @@ public class DashboardQueryPermissionEvaluator implements DomainPermissionEvalua
             return true;
         }
         boolean tenantAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a
-                        .getAuthority().equals("ROLE_TENANT_ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals(AppRole.TENANT_ADMIN.springRole()));
 
-        boolean systemAdmin = authentication.getAuthorities().stream()
-                .anyMatch(a -> a
-                        .getAuthority().equals("ROLE_SYSTEM_ADMIN"));
-        if(tenantAdmin || systemAdmin) {
+        boolean superAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(AppRole.SUPER_ADMIN.springRole()));
+
+        if(tenantAdmin || superAdmin) {
             return true;
         }
         boolean hasBasePermission = authentication.getAuthorities().stream()
@@ -67,7 +67,7 @@ public class DashboardQueryPermissionEvaluator implements DomainPermissionEvalua
             return false;
         }
         UUID currentUserId = UUID.fromString(authentication.getName());
-        if (dataQuery.getOwner().getId().equals(currentUserId)){
+        if (dataQuery.getOwner() != null && dataQuery.getOwner().getId().equals(currentUserId)){
             return true;
         }
         Integer grantedRank = dashboardShareGrantRepository.findMaxAccessLevelRank(UUID.fromString(targetId.toString()),currentUserId);

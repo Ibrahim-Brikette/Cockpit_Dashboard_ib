@@ -5,26 +5,40 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface QueryShareGrantRepository extends JpaRepository<QueryShareGrantEntity, UUID> {
+
+    List<QueryShareGrantEntity> findByQuery_Id(UUID queryId);
+
+    List<QueryShareGrantEntity> findByGranteeUser_Id(UUID userId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("delete from QueryShareGrantEntity g where g.granteeUser.id = :userId")
+    void deleteByGranteeUser_Id(@org.springframework.data.repository.query.Param("userId") UUID userId);
+
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @org.springframework.data.jpa.repository.Query("delete from QueryShareGrantEntity g where g.granteeGroup.id = :groupId")
+    void deleteByGranteeGroup_Id(@org.springframework.data.repository.query.Param("groupId") UUID groupId);
+
     @Query("""
-    select max(
-        case sg.accessLevel
-            when 'OWNER' then 3
-            when 'EDIT' then 2
-            when 'READ' then 1
-            else 0
-        end
-    )
-    from QueryShareGrantEntity sg
-    where sg.query.id = :queryId
-      and (
-           (sg.shareLevel = 'USERS' and sg.granteeUser.id = :userId)
-        or (sg.shareLevel = 'GROUP' and sg.granteeGroup.id in (
-                select m.group.id from UserGroupMembershipEntity m where m.user.id = :userId
-            ))
-      )
+        select max(
+            case sg.accessLevel
+                when 'OWNER' then 3
+                when 'EDIT'  then 2
+                when 'READ'  then 1
+                else 0
+            end
+        )
+        from QueryShareGrantEntity sg
+        where sg.query.id = :queryId
+          and (
+               (sg.shareLevel = 'USERS' and sg.granteeUser.id = :userId)
+            or (sg.shareLevel = 'GROUP' and sg.granteeGroup.id in (
+                    select m.group.id from UserGroupMembershipEntity m where m.user.id = :userId
+               ))
+          )
     """)
     Integer findMaxAccessLevelRank(@Param("queryId") UUID queryId, @Param("userId") UUID userId);
 }

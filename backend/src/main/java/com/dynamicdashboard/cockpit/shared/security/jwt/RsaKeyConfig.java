@@ -8,6 +8,7 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -21,11 +22,15 @@ import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.UUID;
 
 /**
@@ -44,25 +49,64 @@ import java.util.UUID;
  *   3. Audience check (spec 5.2: "dashboard-cockpit-api")
  *   4. JTI revocation check (spec 5.2: blacklist for logout / compromise)
  */
+@Slf4j
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({ JwtProperties.class, RsaKeyProperties.class })
 @ConditionalOnProperty(name = "cockpit.auth.mode", havingValue = "STANDALONE" , matchIfMissing = true)
 @RequiredArgsConstructor
 public class  RsaKeyConfig {
 
     private final JwtProperties        jwtProperties;
     private final JtiRevocationService jtiRevocationService;
+    private final RsaKeyProperties     rsaKeyProperties;
 
     @Bean
-    public RSAKey rsaJwk() throws NoSuchAlgorithmException {
+    public RSAKey rsaJwk() throws Exception {
+        if (rsaKeyProperties.getPrivateKey() != null && !rsaKeyProperties.getPrivateKey().isBlank()) {
+            // External key configured — persistent across restarts and shared across instances.
+            log.info("RSA key loaded from configuration — tokens will survive restarts.");
+            RSAPrivateKey privateKey = parsePrivateKey(rsaKeyProperties.getPrivateKey());
+            RSAPublicKey  publicKey  = parsePublicKey(rsaKeyProperties.getPublicKey());
+            return new RSAKey.Builder(publicKey)
+                    .privateKey(privateKey)
+                    .keyID("cockpit-standalone-key")   // fixed ID — stable across restarts
+                    .build();
+        }
+
+        // No key configured — generate in memory.
+        // Acceptable in local development. Never use in production or multi-instance deployments.
+        log.warn("No RSA key configured (cockpit.auth.rsa.private-key is blank). " +
+                 "Generating in-memory key — tokens will be invalid after every restart. " +
+                 "Set cockpit.auth.rsa.private-key and cockpit.auth.rsa.public-key for stable sessions.");
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         KeyPair keyPair = generator.generateKeyPair();
-
         return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
                 .privateKey((RSAPrivateKey) keyPair.getPrivate())
                 .keyID(UUID.randomUUID().toString())
                 .build();
+    }
+
+    /** Parses a PEM-encoded PKCS#8 private key (-----BEGIN PRIVATE KEY-----). */
+    private RSAPrivateKey parsePrivateKey(String pem) throws Exception {
+        String base64 = pem
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s+", "");
+        byte[] decoded = Base64.getDecoder().decode(base64);
+        return (RSAPrivateKey) KeyFactory.getInstance("RSA")
+                .generatePrivate(new PKCS8EncodedKeySpec(decoded));
+    }
+
+    /** Parses a PEM-encoded X.509 public key (-----BEGIN PUBLIC KEY-----). */
+    private RSAPublicKey parsePublicKey(String pem) throws Exception {
+        String base64 = pem
+                .replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replaceAll("\\s+", "");
+        byte[] decoded = Base64.getDecoder().decode(base64);
+        return (RSAPublicKey) KeyFactory.getInstance("RSA")
+                .generatePublic(new X509EncodedKeySpec(decoded));
     }
 
 //    JwtEncoder (uses PRIVATE key to SIGN tokens)

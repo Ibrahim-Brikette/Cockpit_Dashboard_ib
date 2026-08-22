@@ -37,6 +37,7 @@ import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.RefreshInterval;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.ShareLevel;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.WidgetType;
 import com.dynamicdashboard.cockpit.shared.security.CurrentUserService;
+import com.dynamicdashboard.cockpit.shared.security.tenant.TenantContext;
 import com.dynamicdashboard.cockpit.shared.utils.ParsingUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -225,6 +226,7 @@ public class DashboardApplicationService {
             for (WidgetDto wDto : dto.getWidgets()) {
                 WidgetEntity w = new WidgetEntity();
                 w.setDashboard(dashboard);
+                w.setTenantId(TenantContext.get());
                 w.setWidgetType(ParsingUtils.parseEnum(WidgetType.class, wDto.getType(), WidgetType.KPI));
                 w.setWidgetTitle(wDto.getTitle() != null ? wDto.getTitle() : "Widget");
                 w.setShowTitle(wDto.isShowTitle());
