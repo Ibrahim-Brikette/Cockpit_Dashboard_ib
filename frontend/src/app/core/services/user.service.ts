@@ -10,6 +10,8 @@ export interface UserProfile {
   email: string;
   displayName: string;
   initials?: string;
+  accountStatus?: string;
+  lastLoginAt?: string;
 }
 @Injectable({ providedIn: 'root' })
 export class UserService {

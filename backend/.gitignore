@@ -17,6 +17,12 @@ target/
 *.log
 *.sqlite
 
+# Local developer config — contains credentials and RSA keys, never commit
+src/main/resources/application-local.yml
+
 
 .DS_Store
 Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json

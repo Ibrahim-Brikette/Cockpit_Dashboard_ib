@@ -2,6 +2,7 @@ import { DashboardService } from '@pages/dashboard/services/dashboard.service';
 import { QueryService } from '@pages/query/services/query.service';
 import { AuditService, AuditLogEntry } from '@pages/settings/services/audit.service';
 import { UserService, UserProfile } from '@core/services/user.service';
+import { PermissionService } from '@core/services/permission.service';
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +13,7 @@ import { ButtonComponent } from '@shared/components/ui/button.component';
 import { BadgeComponent } from '@shared/components/ui/badge.component';
 import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component';
 import { QueryWizardModalComponent } from '@pages/query/components/query-wizard-modal.component';
+import { QueryShareModalComponent } from '@pages/query/components/query-share-modal.component';
 import { ConfirmModalComponent } from '@shared/components/ui/confirm-modal.component';
 @Component({
   selector: 'app-query-catalog',
@@ -22,6 +24,7 @@ import { ConfirmModalComponent } from '@shared/components/ui/confirm-modal.compo
     ButtonComponent,
     SvgIconComponent,
     QueryWizardModalComponent,
+    QueryShareModalComponent,
     ConfirmModalComponent
   ],
   templateUrl: './query.component.html'
@@ -33,6 +36,8 @@ export class QueryCatalogComponent implements OnInit, OnDestroy {
   editingQuery: DataQuery | undefined;
   deleteConfirmOpen: boolean = false;
   queryToDeleteId: string | null = null;
+  shareOpen: boolean = false;
+  shareTarget: DataQuery | null = null;
   currentPage: number = 1;
   pageSize: number = 10;
   sortField: string = 'updatedAt';
@@ -42,7 +47,8 @@ export class QueryCatalogComponent implements OnInit, OnDestroy {
   sourcesSub!: Subscription;
   constructor(
     private dashboardService: DashboardService, private queryService: QueryService, private auditService: AuditService, private userService: UserService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    public permissionService: PermissionService
   ) {}
   ngOnInit(): void {
     this.dashboardService.loadFromBackend();
@@ -186,5 +192,9 @@ export class QueryCatalogComponent implements OnInit, OnDestroy {
   saveQuery(query: DataQuery) {
     this.queryService.upsertQuery(query);
     this.showWizard = false;
+  }
+  openShare(query: DataQuery) {
+    this.shareTarget = query;
+    this.shareOpen = true;
   }
 }

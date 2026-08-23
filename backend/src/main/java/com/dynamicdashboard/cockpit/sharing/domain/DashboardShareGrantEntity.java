@@ -1,5 +1,6 @@
 package com.dynamicdashboard.cockpit.sharing.domain;
 import com.dynamicdashboard.cockpit.dashboard.domain.DashboardEntity;
+import com.dynamicdashboard.cockpit.identity.domain.RoleEntity;
 import com.dynamicdashboard.cockpit.identity.domain.UserAccountEntity;
 import com.dynamicdashboard.cockpit.identity.domain.UserGroupEntity;
 import com.dynamicdashboard.cockpit.shared.domain.DomainEnums.AccessLevel;
@@ -35,4 +36,7 @@ public class DashboardShareGrantEntity extends AuditableEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "access_level", nullable = false, length = 24)
     private AccessLevel accessLevel;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "grantee_role_id")
+    private RoleEntity granteeRole;
 }

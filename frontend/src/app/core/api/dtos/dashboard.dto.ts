@@ -42,6 +42,7 @@ export interface DashboardResponseDto {
   description?: string;
   color?: string;
   status: string;
+  ownerId?: string;
   owner?: string;
   shareLevel?: string;
   columns?: number;

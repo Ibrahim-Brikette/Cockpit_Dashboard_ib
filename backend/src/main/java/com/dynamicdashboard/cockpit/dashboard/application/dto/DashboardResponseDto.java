@@ -12,10 +12,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DashboardResponseDto {
     private UUID id;
+    private UUID tenantId;
     private String name;
     private String description;
     private String color;
     private String status;
+    private UUID ownerId;
     private String owner;
     private String shareLevel;
     private int columns;

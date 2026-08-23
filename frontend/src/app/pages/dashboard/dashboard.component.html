@@ -11,7 +11,7 @@
             </p>
           </div>
         </div>
-        <div class="shrink-0 self-start sm:self-auto mt-1 sm:mt-0">
+        <div class="shrink-0 self-start sm:self-auto mt-1 sm:mt-0" *ngIf="permissionService.canCreateDashboard()">
           <app-button variant="primary" size="md" (onClick)="showNewModal = true">
             <app-svg-icon name="Plus" class="h-4 w-4 mr-1"></app-svg-icon>
             <span class="whitespace-nowrap">Nouveau tableau de bord</span>
@@ -100,7 +100,7 @@
           <p class="text-2xs text-ink-faint mb-4">
             {{ currentTab === 'archived' ? 'Les tableaux de bord que vous mezttez en archive apparaîtront ici.' : (currentTab === 'shared' ? 'Aucun tableau de bord ne vous a encore été partagé.' : 'Créez votre premier tableau de bord pour commencer.') }}
           </p>
-          <app-button *ngIf="currentTab !== 'archived'" variant="primary" (onClick)="showNewModal = true">
+          <app-button *ngIf="currentTab !== 'archived' && permissionService.canCreateDashboard()" variant="primary" (onClick)="showNewModal = true">
             Nouveau tableau de bord
           </app-button>
         </div>

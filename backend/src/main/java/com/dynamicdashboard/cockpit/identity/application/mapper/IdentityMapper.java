@@ -11,7 +11,7 @@ public class IdentityMapper {
                 .username(entity.getUsername())
                 .email(entity.getEmail())
                 .displayName(entity.getDisplayName())
-                .accountStatus(entity.getAccountStatus() != null ? entity.getAccountStatus().name().toLowerCase() : "active")
+                .accountStatus(entity.getAccountStatus() != null ? entity.getAccountStatus().name() : "ACTIVE")
                 .lastLoginAt(entity.getLastLoginAt())
                 .build();
     }

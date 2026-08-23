@@ -2,6 +2,7 @@ import { DashboardService } from '@pages/dashboard/services/dashboard.service';
 import { QueryService } from '@pages/query/services/query.service';
 import { AuditService, AuditLogEntry } from '@pages/settings/services/audit.service';
 import { UserService, UserProfile } from '@core/services/user.service';
+import { PermissionService } from '@core/services/permission.service';
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -47,7 +48,8 @@ export class DashboardHomeComponent implements OnInit, OnDestroy {
   constructor(
     private dashboardService: DashboardService, private queryService: QueryService, private auditService: AuditService, private userService: UserService,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    public permissionService: PermissionService
   ) {}
   ngOnInit(): void {
     this.dashboardService.loadFromBackend();

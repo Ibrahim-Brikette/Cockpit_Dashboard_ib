@@ -14,10 +14,18 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+
+import java.util.UUID;
+
 @Getter
 @Setter
 @Entity
 @Table(name = "data_query", schema = "cockpit")
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class DataQueryEntity extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
@@ -39,4 +47,6 @@ public class DataQueryEntity extends AuditableEntity {
     private int rowLimit;
     @Column(name = "used_by_widgets", nullable = false)
     private int usedByWidgets;
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 }
