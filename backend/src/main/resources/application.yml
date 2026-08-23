@@ -1,12 +1,26 @@
 spring:
+  config:
+    import: optional:classpath:application-local.yml
+
   application:
     name: cockpit-backend
 
-  datasource:
-    url: ${COCKPIT_DB_URL:jdbc:postgresql://localhost:5450/cockpit}
-    username: ${COCKPIT_DB_USER:postgres}
-    password: ${COCKPIT_DB_PASSWORD:postgres}
+  mail:
+    host: ${COCKPIT_MAIL_HOST:smtp.gmail.com}
+    port: ${COCKPIT_MAIL_PORT:587}
+    username: ${COCKPIT_MAIL_USERNAME:}
+    password: ${COCKPIT_MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 3000
+      mail.smtp.timeout: 3000
+      mail.smtp.writetimeout: 3000
 
+  datasource:
+    url: ${COCKPIT_DB_URL:jdbc:postgresql://localhost:5432/cockpit}
+    username: ${COCKPIT_DB_USER:postgres}
+    password: ${COCKPIT_DB_PASSWORD:}
     hikari:
       minimum-idle: 2
       maximum-pool-size: 16
@@ -40,6 +54,7 @@ spring:
       port: ${REDIS_PORT:6379}
 
   security:
+    enable: true
     oauth2:
       resourceserver:
         jwt:
@@ -47,7 +62,7 @@ spring:
 
 vault:
   uri: ${VAULT_URI:http://cockpit_vault:8200}
-  token: ${VAULT_TOKEN:root}
+  token: ${VAULT_TOKEN:}
 
 server:
   port: ${COCKPIT_SERVER_PORT:8080}
@@ -63,6 +78,9 @@ server:
     include-binding-errors: never
 
 management:
+  health:
+    redis:
+      enabled: false
   endpoint:
     health:
       show-details: never
@@ -72,15 +90,56 @@ management:
         include: health,info
 
 cockpit:
+  auth:
+    # STANDALONE = cockpit owns login (default).
+    # INTEGRATED = mother app owns login; set jwk-uri below.
+    mode: ${COCKPIT_AUTH_MODE:STANDALONE}
+    # INTEGRATED only — mother app's public key endpoint:
+    # jwk-uri: ${COCKPIT_JWK_URI:https://auth.example.com/.well-known/jwks.json}
+
+    # STANDALONE only — persistent RSA-2048 key pair.
+    # Dev: set in application-local.yml (gitignored).
+    # Prod: inject via COCKPIT_RSA_PRIVATE_KEY and COCKPIT_RSA_PUBLIC_KEY env vars.
+    # If both are blank, an in-memory key is generated on startup (dev only).
+    rsa:
+      private-key: ${COCKPIT_RSA_PRIVATE_KEY:}
+      public-key: ${COCKPIT_RSA_PUBLIC_KEY:}
+
+    claims:
+      user-id: ${COCKPIT_CLAIM_USER_ID:sub}
+      tenant-id: ${COCKPIT_CLAIM_TENANT_ID:tenantId}
+      roles: ${COCKPIT_CLAIM_ROLES:roles}
+      session-id: ${COCKPIT_CLAIM_SESSION_ID:sessionId}
+
   security:
-    allowed-origins: ${COCKPIT_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${COCKPIT_ALLOWED_ORIGINS:http://localhost:4200}
     required-audience: ${COCKPIT_JWT_AUDIENCE:cockpit-api}
     default-username: ${COCKPIT_DEFAULT_USERNAME:}
+
   audit:
     retention-days: ${COCKPIT_AUDIT_RETENTION_DAYS:90}
     purge-cron: ${COCKPIT_AUDIT_PURGE_CRON:0 0 3 * * *}
+
   alerts:
     evaluation-interval-ms: ${COCKPIT_ALERT_EVAL_INTERVAL_MS:300000}
+
+  admin:
+    username: ${COCKPIT_ADMIN_USERNAME:admin}
+    email: ${COCKPIT_ADMIN_EMAIL:admin@cockpit.local}
+    password: ${COCKPIT_ADMIN_PASSWORD:Admin1234!}
+    display-name: ${COCKPIT_ADMIN_DISPLAY_NAME:Administrator}
+
+  password-reset:
+    base-url: ${COCKPIT_RESET_BASE_URL:http://localhost:4200/auth/reinitialisation}
+    verify-url: ${COCKPIT_VERIFY_BASE_URL:http://localhost:4200/auth/verification-email}
+
+app:
+  security:
+    jwt:
+      issuer: ${COCKPIT_JWT_ISSUER:http://localhost:8080}
+      audience: ${COCKPIT_JWT_AUDIENCE_VALUE:dashboard-cockpit-api}
+      access-token-ttl-minutes: 15
+      refresh-token-ttl-hours: 8
 
 logging:
   level:

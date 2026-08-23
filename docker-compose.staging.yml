@@ -47,6 +47,9 @@ services:
       COCKPIT_SERVER_PORT: 8080
       VAULT_URI: ${VAULT_URI:-http://cockpit_vault:8200}
       VAULT_TOKEN: ${VAULT_TOKEN:-root}
+      COCKPIT_ADMIN_USERNAME: ${COCKPIT_ADMIN_USERNAME:-admin}
+      COCKPIT_ADMIN_EMAIL: ${COCKPIT_ADMIN_EMAIL:-admin@cockpit.local}
+      COCKPIT_ADMIN_PASSWORD: ${COCKPIT_ADMIN_PASSWORD:-Admin1234!}
 
     ports:
       - "127.0.0.1:8080:8080"

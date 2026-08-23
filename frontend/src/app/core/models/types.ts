@@ -68,6 +68,7 @@ export interface QuerySort {
 export type QueryVisibility = 'personal' | 'shared';
 export interface DataQuery {
   id: string;
+  ownerId?: string;
   name: string;
   description: string;
   visibility: QueryVisibility;
@@ -171,6 +172,7 @@ export interface Dashboard {
   description: string;
   color: string;
   status: DashboardStatus;
+  ownerId?: string;
   owner: string;
   shareLevel: ShareLevel;
   columns: number;

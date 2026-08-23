@@ -11,7 +11,7 @@
             </p>
           </div>
         </div>
-        <div class="shrink-0 self-start sm:self-auto mt-1 sm:mt-0">
+        <div class="shrink-0 self-start sm:self-auto mt-1 sm:mt-0" *ngIf="permissionService.canCreateQuery()">
           <app-button variant="primary" size="md" (onClick)="openWizard()">
             <app-svg-icon name="Plus" class="h-4 w-4 mr-1.5"></app-svg-icon>
             <span class="whitespace-nowrap">Nouvelle requête</span>
@@ -200,9 +200,10 @@
               <td class="px-4 py-3 truncate text-ink-faint">
                 {{ getModifiedText(q) }}
               </td>
-              <td class="px-4 py-3 truncate text-right">
+              <td class="px-4 py-3 text-right">
                 <div class="inline-flex items-center gap-1">
                   <button
+                    *ngIf="permissionService.canEditQuery()"
                     (click)="edit(q)"
                     title="Modifier"
                     class="rounded p-1.5 text-ink-faint hover:bg-surface-sunken hover:text-brand"
@@ -210,6 +211,7 @@
                     <app-svg-icon name="Pencil" class="h-3.5 w-3.5"></app-svg-icon>
                   </button>
                   <button
+                    *ngIf="permissionService.canCreateQuery()"
                     (click)="duplicate(q.id)"
                     title="Dupliquer"
                     class="rounded p-1.5 text-ink-faint hover:bg-surface-sunken hover:text-brand"
@@ -217,6 +219,15 @@
                     <app-svg-icon name="Copy" class="h-3.5 w-3.5"></app-svg-icon>
                   </button>
                   <button
+                    *ngIf="permissionService.canShareQuery(q)"
+                    (click)="openShare(q)"
+                    title="Partager"
+                    class="rounded p-1.5 text-ink-faint hover:bg-surface-sunken hover:text-brand"
+                  >
+                    <app-svg-icon name="Share2" class="h-3.5 w-3.5"></app-svg-icon>
+                  </button>
+                  <button
+                    *ngIf="permissionService.canDeleteQuery()"
                     (click)="deleteQuery(q.id)"
                     title="Supprimer"
                     class="rounded p-1.5 text-ink-faint hover:bg-surface-sunken hover:text-negative"
@@ -285,6 +296,11 @@
         (onClose)="showWizard = false"
         (onSave)="saveQuery($event)"
       ></app-query-wizard-modal>
+      <app-query-share-modal
+        [open]="shareOpen"
+        [query]="shareTarget"
+        (onClose)="shareOpen = false; shareTarget = null"
+      ></app-query-share-modal>
       <app-confirm-modal
         [open]="deleteConfirmOpen"
         title="Supprimer la requête"

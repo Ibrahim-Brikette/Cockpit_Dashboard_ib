@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { DbConnectionService, DbConnectionResponse } from './services/db-connection.service';
+import { PermissionService } from '@core/services/permission.service';
 import { Router, RouterModule } from '@angular/router';
 import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component';
 import { ButtonComponent } from '@shared/components/ui/button.component';
@@ -33,10 +34,11 @@ export class DataSourcesComponent implements OnInit {
   showDeleteModal = false;
   dbToDelete: DbConnectionResponse | null = null;
   constructor(
-    private router: Router, 
+    private router: Router,
     private dbConnectionService: DbConnectionService,
     private http: HttpClient,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    public permissionService: PermissionService
   ) {}
   ngOnInit() {
     this.fetchConnections();

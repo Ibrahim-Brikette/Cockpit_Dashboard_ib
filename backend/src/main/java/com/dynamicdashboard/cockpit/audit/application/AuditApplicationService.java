@@ -46,8 +46,6 @@ public class AuditApplicationService {
                     .orElse(null);
         }
         if (actor == null) {
-            // Pas de fallback vers un utilisateur codé en dur : si on ne sait pas qui a fait
-            // l'action, l'audit reste honnête et affiche "Système" plutôt qu'un faux nom.
             try {
                 actor = currentUserService.getCurrentUser();
             } catch (Exception e) {
@@ -75,7 +73,6 @@ public class AuditApplicationService {
         return auditMapper.toDto(saved);
     }
 
-    /** Récupère la vraie IP de la requête HTTP en cours (au lieu de "127.0.0.1" codé en dur). */
     private String resolveClientIp() {
         HttpServletRequest request = currentHttpRequest();
         if (request == null) return "unknown";
@@ -86,7 +83,6 @@ public class AuditApplicationService {
         return request.getRemoteAddr();
     }
 
-    /** Récupère le vrai User-Agent de la requête HTTP en cours (au lieu de "Chrome" codé en dur). */
     private String resolveUserAgent() {
         HttpServletRequest request = currentHttpRequest();
         if (request == null) return "unknown";
@@ -104,8 +100,6 @@ public class AuditApplicationService {
         }
     }
 
-    /** Pagine/limite les événements retournés : évite de charger toute la table en mémoire
-     *  à chaque affichage de la page Paramètres > Audit. */
     @Transactional(readOnly = true)
     public List<AuditEventDto> getRecentEvents() {
         Instant threshold = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS);
@@ -115,7 +109,6 @@ public class AuditApplicationService {
                 .collect(Collectors.toList());
     }
 
-    /** Purge périodique — voir AuditPurgeScheduler. */
     @Transactional
     public long purgeOlderThan(Instant threshold) {
         long count = auditEventRepository.countByOccurredAtBefore(threshold);
@@ -123,9 +116,6 @@ public class AuditApplicationService {
         return count;
     }
 
-    /** Alimente la card "Requêtes les plus exécutées" du KPI admin, à partir de la table
-     *  d'audit (donc données réelles), avec une agrégation faite en base (pré-agrégée),
-     *  pas une boucle Java sur tous les événements. */
     @Transactional(readOnly = true)
     public List<com.dynamicdashboard.cockpit.audit.application.dto.AuditTargetCountDto> getTopQueryExecutions(int limit) {
         return auditEventRepository
