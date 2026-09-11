@@ -5,7 +5,9 @@ import { BehaviorSubject, Observable, map, tap, finalize } from 'rxjs';
 import { AppRole } from '@core/enums/app-role.enum';
 import { UserProfile } from '@core/services/user.service';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200')
+  ? 'http://localhost:8080/api'
+  : '/api';
 const TOKEN_KEY = 'cockpit_jwt';
 
 interface LoginResponse {

@@ -18,7 +18,9 @@ export interface CreateShareGrantRequest {
   granteeGroupId?: string;
 }
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '4200')
+  ? 'http://localhost:8080/api'
+  : '/api';
 
 @Injectable({ providedIn: 'root' })
 export class SharingService {
