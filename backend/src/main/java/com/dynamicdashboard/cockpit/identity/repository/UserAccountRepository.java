@@ -7,4 +7,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccountEntity, 
     Optional<UserAccountEntity> findByUsername(String username);
     Optional<UserAccountEntity> findByDisplayName(String displayName);
     Optional<UserAccountEntity> findByEmail(String email);
+
+    /** Used as a safety net in dev/local when no user is authenticated:
+     *  returns any existing account rather than a hardcoded username. */
+    Optional<UserAccountEntity> findFirstByOrderByCreatedAtAsc();
 }

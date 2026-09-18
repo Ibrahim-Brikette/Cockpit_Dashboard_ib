@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { Subscription, combineLatest } from 'rxjs';
 import { SvgIconComponent } from '@shared/components/svg-icon/svg-icon.component';
 import { BadgeComponent } from '@shared/components/ui/badge.component';
@@ -14,8 +15,7 @@ import {
   actionLabel,
   activitySeries,
   engagementRate,
-  topDashboardMetrics,
-  topQueryMetrics
+  topDashboardMetrics
 } from '@pages/admin-kpi/utils/analytics.utils';
 
 type ActivityFilter = 'all' | AnalyticsEvent['action'];
@@ -78,6 +78,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     private queryService: QueryService,
     private analyticsService: AnalyticsService,
     private dbConnectionService: DbConnectionService,
+    private http: HttpClient,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -85,10 +86,13 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
     this.dashboardService.loadFromBackend();
     this.queryService.loadFromBackend();
     this.analyticsService.loadFromBackend();
+    this.loadTopQueryExecutions();
 
-    this.dbConnectionService.getAllConnections().subscribe(conns => {
-      this.dataSourcesCount = conns?.length ?? 0;
-    });
+  this.dbConnectionService.getAllConnections().subscribe(conns => {
+  setTimeout(() => {
+    this.dataSourcesCount = conns?.length ?? 0;
+  });
+});
 
     this.subscription = combineLatest([
       this.dashboardService.dashboards$,
@@ -102,7 +106,8 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
       const counters = overview.counters;
       this.dashboardViews = Object.values(counters.dashboardViews).reduce((sum, value) => sum + value, 0);
       this.rawDataViews = Object.values(counters.widgetRawDataViews).reduce((sum, value) => sum + value, 0);
-      this.queryRuns = Object.values(counters.queryExecutions).reduce((sum, value) => sum + value, 0);
+      // Les exécutions de requêtes viennent maintenant de la table d'AUDIT (voir loadTopQueryExecutions()),
+      // plus de analytics_event : ça évite de gonfler ce compteur à chaque simple rendu de widget/reload.
       this.impressions = counters.impressions;
       this.clicksEngagement = engagementRate(counters);
 
@@ -116,7 +121,7 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
       this.seriesPoints = activitySeries(last7);
 
       this.topDashboards = topDashboardMetrics(dashboards, counters).map((item) => ({ ...item, detail: 'consultations' }));
-      this.topQueries = topQueryMetrics(queries, counters).map((item) => ({ ...item, detail: 'exécutions' }));
+      // this.topQueries n'est plus recalculé ici : il vient de loadTopQueryExecutions() (table d'audit).
 
       const widgets = dashboards.flatMap((dashboard) =>
         dashboard.widgets.map((widget) => ({ ...widget, dashboardName: dashboard.name }))
@@ -145,6 +150,34 @@ export class AdminKpiComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription?.unsubscribe();
+  }
+
+  /**
+   * Charge le classement des requêtes les plus exécutées depuis la table d'AUDIT
+   * (agrégation faite côté base de données via GROUP BY, pas en JS sur tous les événements).
+   * Remplace l'ancienne source (analytics_event / counters.queryExecutions) qui comptait
+   * à tort chaque rendu de widget comme un "clic" utilisateur.
+   */
+  private loadTopQueryExecutions(): void {
+    this.http.get<{ targetId: string; label: string; total: number }[]>(
+      '/api/audit-events/top-query-executions?limit=5'
+    ).subscribe({
+      next: (rows) => {
+        const list = rows ?? [];
+        this.queryRuns = list.reduce((sum, row) => sum + (row.total ?? 0), 0);
+        this.topQueries = list.map((row) => ({
+          id: row.targetId,
+          label: row.label || 'Requête supprimée',
+          value: row.total,
+          detail: 'exécutions'
+        }));
+        
+      },
+      error: () => {
+        this.queryRuns = 0;
+        this.topQueries = [];
+      }
+    });
   }
 
   get activities(): AnalyticsEvent[] {
